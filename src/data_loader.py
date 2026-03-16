@@ -7,7 +7,6 @@ def load_metadata(dataset_path):
     metadata_path = os.path.join(dataset_path, "metadata.csv")
     return pd.read_csv(metadata_path)
 
-
 def load_record(dataset_path, patient_id):
     record_path = os.path.join(
         dataset_path,
@@ -20,7 +19,6 @@ def load_record(dataset_path, patient_id):
     signal = record.p_signal
 
     return signal
-
 
 def load_dataset(dataset_path):
     metadata = load_metadata(dataset_path)

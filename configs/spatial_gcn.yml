@@ -1,0 +1,17 @@
+_base_: base.yml
+
+experiment_name: "spatial_gcn"
+
+model:
+  type: "spatial_gcn"
+  params:
+    hidden_dim: 64
+    num_gcn_layers: 3
+    correlation_threshold: 0.3
+    use_edge_weights: true
+    gnn_type: "gcn"                # Options: gcn, gat, gin
+
+training:
+  learning_rate: 0.0005            # Conservative for GNN
+  weight_decay: 0.01               # Strong regularization
+  epochs: 150

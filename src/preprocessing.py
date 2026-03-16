@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.signal import butter, filtfilt
-from data_loader import load_dataset
-
+from src.data_loader import load_dataset
 
 def bandpass_filter(signal, lowcut=0.5, highcut=40, fs=100, order=4):
     nyquist = 0.5 * fs
@@ -38,8 +37,24 @@ def compute_graph_dataset(X):
 
     return np.array(adjacency_matrices)
 
+def adjacency_to_edge_index(adj_matrix, threshold=0.5):
+    num_nodes = adj_matrix.shape[0]  # 12 leads
+    edge_index = []
+    edge_weight = []
+    
+    for i in range(num_nodes):
+        for j in range(num_nodes):
+            if i != j and abs(adj_matrix[i, j]) > threshold:
+                edge_index.append([i, j])
+                edge_weight.append(adj_matrix[i, j])
+    
+    edge_index = torch.tensor(edge_index, dtype=torch.long).t()
+    edge_weight = torch.tensor(edge_weight, dtype=torch.float)
+    
+    return edge_index, edge_weight
+
 #Load Dataset
-dataset_path = "./brugada-huca-12-lead-ecg-recordings-for-the-study-of-brugada-syndrome-1.0.0"
+dataset_path = "physionet.org/files/brugada-huca/1.0.0"
 
 # load dataset
 X, y = load_dataset(dataset_path)

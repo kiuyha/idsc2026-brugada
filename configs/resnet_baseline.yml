@@ -1,0 +1,16 @@
+_base_: base.yml
+
+experiment_name: "resnet_baseline"
+
+model:
+  type: "resnet_baseline"
+  params:
+    num_resnet_blocks: 4
+    resnet_channels: [32, 64, 128, 256]
+    kernel_size: 7
+    dropout: 0.4
+    pool_type: "avg"
+
+training:
+  learning_rate: 0.001
+  epochs: 120

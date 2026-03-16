@@ -1,0 +1,24 @@
+_base_: base.yml
+
+experiment_name: "hybrid_resnet_gcn"
+
+model:
+  type: "hybrid_model"
+  params:
+    num_resnet_blocks: 3
+    resnet_channels: [32, 64, 128]
+    temporal_output_dim: 128
+
+    hidden_dim: 64
+    num_gcn_layers: 3
+    correlation_threshold: 0.3
+    use_edge_weights: true
+    gnn_type: "gcn"                # Options: gcn, gat, gin
+
+    fusion_method: "concatenate"   # Options: concatenate, add, attention
+
+training:
+  learning_rate: 0.0003
+  weight_decay: 0.015
+  epochs: 150
+  gradient_clip_norm: 0.5
