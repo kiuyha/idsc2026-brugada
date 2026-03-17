@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import wfdb
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 from sklearn.model_selection import train_test_split
 from src.preprocessing import bandpass_filter, compute_corr_adjacency, adjacency_to_edge_index, build_anatomical_adjacency, normalize_signal, augment_ecg
 
@@ -129,7 +129,19 @@ def get_dataloaders(config):
         stratify=labels,
         random_state=config.get('seed', 42)
     )
-    
+
+    # Compute class weights for imbalanced datasets (Only used for training)
+    train_labels = labels[train_indices]
+    class_counts = np.bincount(train_labels.astype(int))
+    class_weights = 1.0 / class_counts
+    sample_weights = np.array([class_weights[int(label)] for label in train_labels])
+    sample_weights = torch.from_numpy(sample_weights).double()
+    sampler = WeightedRandomSampler(
+        weights=sample_weights,
+        num_samples=len(sample_weights),
+        replacement=True
+    )
+
     temp_labels = labels[temp_indices]
     val_indices, test_indices = train_test_split(
         temp_indices,
@@ -148,8 +160,8 @@ def get_dataloaders(config):
     train_loader = DataLoader(
         train_dataset,
         batch_size=data_cfg.get('batch_size', 16),
-        shuffle=data_cfg.get('train_shuffle', True),
         num_workers=num_workers,
+        sampler=sampler,
         pin_memory=True if torch.cuda.is_available() else False,
         collate_fn=collate_fn_graph
     )

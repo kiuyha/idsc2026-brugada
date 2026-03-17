@@ -12,7 +12,6 @@ data:
   train_split: 0.7
   val_split: 0.15
   test_split: 0.15
-  train_shuffle: true
 
   # Data augmentation
   augmentation:
