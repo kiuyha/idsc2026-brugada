@@ -29,6 +29,7 @@ SEARCH_SPACES = {
         'hidden_dim': [64, 128, 192],
         'num_gnn_layers': [2, 3],
         'correlation_threshold': [0.2, 0.25, 0.3],
+        'gnn_type': ['gcn', 'gat', 'gin'],
         'enable_basal_pattern': [True, False],
         'enable_sudden_death': [True, False],
     },
@@ -40,11 +41,11 @@ SEARCH_SPACES = {
         'hidden_dim': [64, 128, 192],
         'num_gnn_layers': [2, 3],
         'pooling': ['mean', 'max', 'attention'],
+        'gnn_type': ['gcn', 'gat', 'gin'],
         'enable_basal_pattern': [True, False],
         'enable_sudden_death': [True, False],
     }
 }
-
 
 def create_config_variant(base_config_path, params, variant_id):
     config = load_config(base_config_path)
@@ -54,7 +55,7 @@ def create_config_variant(base_config_path, params, variant_id):
             config['training'][key] = float(value)
         elif key in ['dropout']:
             config['model']['params'][key] = float(value)
-        elif key in ['resnet_channels', 'hidden_dim', 'num_gnn_layers', 'pooling']:
+        elif key in ['resnet_channels', 'hidden_dim', 'num_gnn_layers', 'pooling', 'gnn_type']:
             config['model']['params'][key] = value
         elif key in ['correlation_threshold']:
             config['data'][key] = float(value)
@@ -190,6 +191,8 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
         
         best_params = results_df.iloc[0]
         best_config_path = f"configs/best/{model_type}.yml"
+        
+        Path(best_config_path).parent.mkdir(parents=True, exist_ok=True)
         
         best_config = load_config(base_config_path)
         

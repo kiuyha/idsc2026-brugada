@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from scipy.signal import butter, filtfilt
 
-def bandpass_filter(signal, lowcut=0.5, highcut=40, fs=500, order=4):
+def bandpass_filter(signal, lowcut=0.5, highcut=40, fs=100, order=4):
     nyquist = 0.5 * fs
     low = lowcut / nyquist
     high = highcut / nyquist
@@ -109,10 +109,11 @@ def adjacency_to_edge_index(adj_matrix, threshold=0.3, add_self_loops=True):
     
     for i in range(num_nodes):
         for j in range(num_nodes):
-            # Only keep edges above threshold (and exclude self-loops)
             if i != j and abs(adj_matrix[i, j]) > threshold:
                 edge_list.append([i, j])
-                edge_weights.append(adj_matrix[i, j])
+                
+                # Force weights to be positive
+                edge_weights.append(abs(adj_matrix[i, j]))
 
     if add_self_loops:
         for i in range(num_nodes):
@@ -124,7 +125,6 @@ def adjacency_to_edge_index(adj_matrix, threshold=0.3, add_self_loops=True):
         edge_index = torch.tensor(edge_list, dtype=torch.long).t() 
         edge_weight = torch.tensor(edge_weights, dtype=torch.float)
     else:
-        # If no edges above threshold, create empty tensors
         edge_index = torch.zeros((2, 0), dtype=torch.long)
         edge_weight = torch.zeros(0, dtype=torch.float)
     

@@ -11,7 +11,6 @@ data:
   leads: 12
   normalize: zscore_per_lead
   path: experiments/physionet.org/files/brugada-huca/1.0.0
-  sample_rate: 500
   self_loops: true
   test_split: 0.15
   train_shuffle: true

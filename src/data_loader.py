@@ -38,9 +38,9 @@ class BrugadaDataset(Dataset):
     
     def __getitem__(self, idx):
         patient_id = self.patient_ids[idx]
-        signal = self._load_record(patient_id)
+        signal, fs = self._load_record(patient_id)
         
-        signal = bandpass_filter(signal, lowcut=0.5, highcut=40, fs=500, order=4)
+        signal = bandpass_filter(signal, lowcut=0.5, highcut=40, fs=fs, order=4)
         
         if self.normalize:
             signal = normalize_signal(signal, method=self.normalize)
@@ -81,11 +81,9 @@ class BrugadaDataset(Dataset):
             str(patient_id),
             str(patient_id)
         )
-        
         record = wfdb.rdrecord(record_path)
-        signal = record.p_signal
         
-        return signal
+        return record.p_signal, record.fs
 
 
 def get_dataloaders(config):

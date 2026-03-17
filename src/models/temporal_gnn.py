@@ -56,7 +56,6 @@ class TemporalGNN(BaseECGModel):
     
     def get_embeddings(self, x):
         batch_size = x.shape[0]
-        edge_weight = edge_weight.clamp(-1.0, 1.0)
         num_leads = 12
         
         lead_embeddings = []
@@ -68,11 +67,16 @@ class TemporalGNN(BaseECGModel):
             for sample_idx in range(batch_size):
                 signal = lead_signal[sample_idx]
                 edge_index, edge_weight = build_visibility_graph(signal)
+                edge_weight = edge_weight.clamp(-1.0, 1.0)
                 node_features = signal.unsqueeze(-1)
                 h = node_features
 
                 for i, gnn in enumerate(self.gnns):
-                    h = gnn(h, edge_index, edge_weight)
+                    if isinstance(gnn, GCNConv) and edge_weight is not None:
+                        h = gnn(h, edge_index, edge_weight)
+                    else:
+                        h = gnn(h, edge_index)
+                        
                     if i < len(self.gnns) - 1:
                         h = F.silu(h)
                 

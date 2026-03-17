@@ -5,7 +5,6 @@ seed: 42
 # Data
 data:
   path: "experiments/physionet.org/files/brugada-huca/1.0.0"
-  sample_rate: 500
   duration: 10  # seconds
   leads: 12
 

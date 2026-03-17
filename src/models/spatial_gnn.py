@@ -80,8 +80,11 @@ class SpatialGNN(BaseECGModel):
         
         h = node_features
         for i, gnn in enumerate(self.gnns):
-            h = gnn(h, edge_index, edge_weight)
-            
+            if isinstance(gnn, GCNConv) and edge_weight is not None:
+                h = gnn(h, edge_index, edge_weight)
+            else:
+                h = gnn(h, edge_index)
+                
             # Activation (except last layer)
             if i < len(self.gnns) - 1:
                 h = F.silu(h)

@@ -68,7 +68,9 @@ class Trainer:
         total_loss = 0
         task_losses_sum = {task: 0 for task in self.model.tasks}
         
-        for batch in tqdm(self.train_loader, desc="Training"):
+        pbar = tqdm(self.train_loader, desc="Training")
+        
+        for batch in pbar:
             signals = batch['signal'].to(self.device)
             labels = {
                 task: batch['labels'][task].to(self.device) 
@@ -104,9 +106,15 @@ class Trainer:
 
                 self.optimizer.step()
 
-            total_loss += loss.item()
+            if torch.isnan(loss):
+                raise ValueError("Loss is NaN")
+            
+            current_loss = loss.item()
+            total_loss += current_loss
             for task, task_loss in task_losses.items():
                 task_losses_sum[task] += task_loss
+                
+            pbar.set_postfix({'loss': f"{current_loss:.4f}"})
         
         avg_loss = total_loss / len(self.train_loader)
         avg_task_losses = {
