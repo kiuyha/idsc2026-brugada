@@ -51,7 +51,7 @@ class Trainer:
             for task_name, task_config in config['tasks'].items()
             if task_config['enabled']
         }
-        self.criterion = self.criterion = MultiTaskLoss(
+        self.criterion = MultiTaskLoss(
             task_weights=task_weights,
             loss_type=self.train_cfg.get('loss_function', 'focal'),
             loss_params=self.train_cfg.get('loss_params', {})
@@ -84,7 +84,8 @@ class Trainer:
             if self.train_cfg.get('use_mixing_precision'):
                 with autocast(self.device_name):
                     outputs = self.model(signals, **kwargs)
-                loss, task_losses = self.criterion(outputs, labels)
+                    loss, task_losses = self.criterion(outputs, labels)
+                    
                 self.scaler.scale(loss).backward()
                 self.scaler.unscale_(self.optimizer)
 
@@ -138,20 +139,19 @@ class Trainer:
             current_lr = self.optimizer.param_groups[0]['lr']
             print(f"\nLearning Rate: {current_lr:.6f}")
 
-            # Early stopping
             primary_metric = val_metrics[self.primary_task][self.primary_metric]
             if primary_metric > self.best_metric_val:
                 self.best_metric_val = primary_metric
                 self.patience_counter = 0
                 self.save_checkpoint()
-                print(f"New best {self.primary_task} F2: {primary_metric:.4f}")
+                print(f"New best {self.primary_task} {self.primary_metric}: {primary_metric:.4f}")
             else:
                 self.patience_counter += 1
                 print(f"No improvement ({self.patience_counter}/{self.patience})")
             
             if self.scheduler is not None:
                 if isinstance(self.scheduler, ReduceLROnPlateau):
-                    self.scheduler.step(val_metrics[self.primary_task]['f2'])
+                    self.scheduler.step(val_metrics[self.primary_task][self.primary_metric])
                 else:
                     self.scheduler.step()
 
@@ -182,7 +182,8 @@ class Trainer:
                 outputs = self.model(signals, **kwargs)
                 
                 for task in self.model.tasks:
-                    all_preds[task].append(outputs[task].cpu())
+                    probs = torch.sigmoid(outputs[task])
+                    all_preds[task].append(probs.cpu())
                     all_labels[task].append(labels[task].cpu())
         
         for task in self.model.tasks:
@@ -245,9 +246,8 @@ class FocalLoss(nn.Module):
         self.reduction = reduction
     
     def forward(self, inputs, targets):
-        bce_loss = F.binary_cross_entropy(inputs, targets, reduction='none')
-        
-        p_t = inputs * targets + (1 - inputs) * (1 - targets)
+        bce_loss = F.binary_cross_entropy_with_logits(inputs, targets.float(), reduction='none')
+        p_t = torch.exp(-bce_loss)
         alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
         focal_weight = alpha_t * (1 - p_t) ** self.gamma
         
@@ -266,18 +266,14 @@ class MultiTaskLoss(nn.Module):
         self.task_weights = task_weights
         loss_params = loss_params or {}
         
-        # Create loss function per task
         self.task_losses = nn.ModuleDict()
         for task in task_weights.keys():
             if loss_type == 'focal':
-                loss_func = FocalLoss
-            elif loss_type == 'bce':
-                loss_func = nn.BCELoss
-            elif loss_type == 'weighted_bce':
-                loss_func = nn.BCEWithLogitsLoss
+                self.task_losses[task] = FocalLoss(**loss_params)
+            elif loss_type in ['bce', 'weighted_bce']:
+                self.task_losses[task] = nn.BCEWithLogitsLoss(**loss_params)
             else:
                 raise ValueError(f"Unknown loss type: {loss_type}")
-            self.task_losses[task] = loss_func(**loss_params)
     
     def forward(self, predictions, targets):
         total_loss = 0
@@ -285,7 +281,7 @@ class MultiTaskLoss(nn.Module):
         
         for task in self.task_weights.keys():
             if task in predictions and task in targets:
-                task_loss = self.task_losses[task](predictions[task], targets[task])
+                task_loss = self.task_losses[task](predictions[task], targets[task].float())
                 weighted_loss = self.task_weights[task] * task_loss
                 total_loss += weighted_loss
                 task_losses_dict[task] = task_loss.item()

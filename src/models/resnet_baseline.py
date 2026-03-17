@@ -1,7 +1,6 @@
 from .base import BaseECGModel
 import torch.nn as nn
 import torch.nn.functional as F
-import torch
 
 class ResNetBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=7):
@@ -54,7 +53,7 @@ class ResNetBaseline(BaseECGModel):
         x = self.pool(x).squeeze(-1)
         x = self.dropout(x)
         return {
-            task: torch.sigmoid(head(x))
+            task: head(x)
             for task, head in self.task_heads.items()
         }
     

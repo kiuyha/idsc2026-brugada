@@ -48,7 +48,7 @@ class TemporalGNN(BaseECGModel):
         h = self.dropout(h)
         
         outputs = {
-            task: torch.sigmoid(head(h))
+            task: head(h)
             for task, head in self.task_heads.items()
         }
         

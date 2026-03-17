@@ -68,7 +68,7 @@ training:
   gradient_clip_norm: 1.0
 
   # Loss function
-  loss_function: "focal"  # Options: focal, bce, weighted_bce
+  loss_function: "focal"  # Options: focal, bce
   loss_params:
     alpha: 0.79 # Calculated from 287/(76+287)
     gamma: 2.0

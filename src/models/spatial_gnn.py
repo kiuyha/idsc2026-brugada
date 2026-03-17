@@ -50,7 +50,7 @@ class SpatialGNN(BaseECGModel):
         h = self.dropout(h)
         
         return {
-            task: torch.sigmoid(head(h))
+            task: head(h)
             for task, head in self.task_heads.items()
         }
     
