@@ -1,0 +1,16 @@
+_base_: base.yml
+
+experiment_name: "spatial_gnn"
+
+model:
+  type: "spatial_gnn"
+  params:
+    hidden_dim: 64
+    num_gnn_layers: 3
+    gnn_type: "gcn"                # Options: gcn, gat, gin
+    gnn_kwargs: {}                  # Additional arguments for GNN layers
+
+training:
+  learning_rate: 0.0003
+  weight_decay: 0.015
+  epochs: 150

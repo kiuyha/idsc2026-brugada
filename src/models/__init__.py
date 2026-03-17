@@ -1,15 +1,15 @@
-from .resnet import ResNetBaseline
-from .spatial_gcn import SpatialGCNModel
-# from .temporal_gin import TemporalGINModel  # Future addition
+from .resnet_baseline import ResNetBaseline
+from .spatial_gnn import SpatialGNN
+from .temporal_gnn import TemporalGNN
 
 MODEL_REGISTRY = {
     'resnet_baseline': ResNetBaseline,
-    'spatial_gcn': SpatialGCNModel,
-    # 'temporal_gin': TemporalGINModel,
+    'spatial_gnn': SpatialGNN,
+    'temporal_gnn': TemporalGNN
 }
 
 def build_model(config):
-    model_type = config.model.type
+    model_type = config['model']['type']
     
     if model_type not in MODEL_REGISTRY:
         raise ValueError(f"Unknown model type: {model_type}. Available: {list(MODEL_REGISTRY.keys())}")

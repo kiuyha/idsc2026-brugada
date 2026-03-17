@@ -1,16 +1,17 @@
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from pathlib import Path
-from src.metrics import compute_metrics
+import os
+from src.metrics import compute_metrics_multitask
 from src.utils import get_device
 import torch.nn.functional as F
 from torch.amp import autocast, GradScaler
 from torch.optim.lr_scheduler import LinearLR, ReduceLROnPlateau, StepLR, CosineAnnealingLR, SequentialLR
 from torch.nn.utils import clip_grad_norm_
+from src.models.base import BaseECGModel
 
 class Trainer:
-    def __init__(self, model, config, train_loader, val_loader, test_loader):
+    def __init__(self, model: BaseECGModel, config, train_loader, val_loader, test_loader):
         self.model = model
         self.train_loader = train_loader
         self.val_loader = val_loader
@@ -40,27 +41,45 @@ class Trainer:
         else:
             self.scheduler = self._build_scheduler() 
         
-        self.criterion = self._loss_function().to(self.device)
+        task_weights = {
+            task_name: task_config['weight']
+            for task_name, task_config in config['tasks'].items()
+            if task_config['enabled']
+        }
+        self.criterion = self.criterion = MultiTaskLoss(
+            task_weights=task_weights,
+            loss_type=self.train_cfg.get('loss_function', 'focal'),
+            loss_params=self.train_cfg.get('loss_params', {})
+        )
         self.device_name = config.get('device', 'cpu')
         self.scaler = GradScaler(self.device_name)
 
         self.best_val_f2 = 0.0
         self.patience_counter = 0
+        self.primary_task = list(task_weights.keys())[0]
         
     def train_epoch(self):
         self.model.train()
         total_loss = 0
+        task_losses_sum = {task: 0 for task in self.model.tasks}
         
         for batch in tqdm(self.train_loader, desc="Training"):
             signals = batch['signal'].to(self.device)
-            labels = batch['label'].to(self.device)
+            labels = {
+                task: batch['labels'][task].to(self.device) 
+                for task in self.model.tasks
+            }
             
             self.optimizer.zero_grad()
+            kwargs = {}
+            if 'edge_index' in batch:
+                kwargs['edge_index'] = batch['edge_index'].to(self.device)
+                kwargs['edge_weight'] = batch['edge_weight'].to(self.device)
 
             if self.train_cfg.get('use_mixing_precision'):
                 with autocast(self.device_name):
-                    outputs = self.model(signals)
-                    loss = self.criterion(outputs, labels)
+                    outputs = self.model(signals, **kwargs)
+                loss, task_losses = self.criterion(outputs, labels)
                 self.scaler.scale(loss).backward()
                 self.scaler.unscale_(self.optimizer)
 
@@ -70,8 +89,8 @@ class Trainer:
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
             else:
-                outputs = self.model(signals)
-                loss = self.criterion(outputs, labels)
+                outputs = self.model(signals, **kwargs)
+                loss, task_losses = self.criterion(outputs, labels)
                 loss.backward()
 
                 if self.train_cfg.get('gradient_clip_norm'):
@@ -80,8 +99,16 @@ class Trainer:
                 self.optimizer.step()
 
             total_loss += loss.item()
+            for task, task_loss in task_losses.items():
+                task_losses_sum[task] += task_loss
         
-        return total_loss / len(self.train_loader)
+        avg_loss = total_loss / len(self.train_loader)
+        avg_task_losses = {
+            task: loss / len(self.train_loader) 
+            for task, loss in task_losses_sum.items()
+        }
+        
+        return avg_loss, avg_task_losses
     
     def train(self):
         print(f"\nTraining for {self.epochs} epochs...")
@@ -89,72 +116,97 @@ class Trainer:
         for epoch in range(self.epochs):
             print(f"\nEpoch {epoch+1}/{self.epochs}")
             
-            train_loss = self.train_epoch()
+            train_loss, train_task_losses = self.train_epoch()
             val_metrics = self.validate()
             
             print(f"Train Loss: {train_loss:.4f}")
-            print(f"Val F2: {val_metrics['f2']:.4f} | Val Acc: {val_metrics['accuracy']:.4f}")
+            for task, loss in train_task_losses.items():
+                print(f"  {task}: {loss:.4f}")
             
+            print(f"\nValidation Metrics:")
+            for task in self.model.tasks:
+                task_metrics = val_metrics[task]
+                print(f"  {task}:")
+                print(f"    F2: {task_metrics['f2']:.4f} | "
+                  f"Acc: {task_metrics['accuracy']:.4f} | "
+                  f"AUC: {task_metrics['auc']:.4f}")
+            
+            current_lr = self.optimizer.param_groups[0]['lr']
+            print(f"\nLearning Rate: {current_lr:.6f}")
+
             # Early stopping
-            if val_metrics['f2'] > self.best_val_f2:
-                self.best_val_f2 = val_metrics['f2']
+            primary_f2 = val_metrics[self.primary_task]['f2']
+            if primary_f2 > self.best_val_f2:
+                self.best_val_f2 = primary_f2
                 self.patience_counter = 0
-                self.save_checkpoint('best_model.pt')
+                self.save_checkpoint()
+                print(f"New best {self.primary_task} F2: {primary_f2:.4f}")
             else:
                 self.patience_counter += 1
+                print(f"No improvement ({self.patience_counter}/{self.patience})")
             
+            if self.scheduler is not None:
+                if isinstance(self.scheduler, ReduceLROnPlateau):
+                    self.scheduler.step(val_metrics[self.primary_task]['f2'])
+                else:
+                    self.scheduler.step()
+
             if self.patience_counter >= self.patience:
                 print(f"\nEarly stopping triggered after {epoch+1} epochs")
                 break
-        
-        print("\nEvaluating on test set...")
-        test_metrics = self.testing()
-        print(f"Test F2: {test_metrics['f2']:.4f} | Test Acc: {test_metrics['accuracy']:.4f}")
 
     def validate(self, loader=None):
+        if loader is None:
+            loader = self.val_loader
         self.model.eval()
-        all_preds = []
-        all_labels = []
+        all_preds = {task: [] for task in self.model.tasks}
+        all_labels = {task: [] for task in self.model.tasks}
         
         with torch.no_grad():
-            for batch in tqdm(loader or self.val_loader, desc="Validation"):
+            for batch in tqdm(loader, desc="Validation"):
                 signals = batch['signal'].to(self.device)
-                labels = batch['label'].to(self.device)
+                labels = {
+                    task: batch['labels'][task].to(self.device) 
+                    for task in self.model.tasks
+                }
+
+                kwargs = {}
+                if 'edge_index' in batch:
+                    kwargs['edge_index'] = batch['edge_index'].to(self.device)
+                    kwargs['edge_weight'] = batch['edge_weight'].to(self.device)
                 
-                outputs = self.model(signals)
+                outputs = self.model(signals, **kwargs)
                 
-                all_preds.append(outputs.cpu())
-                all_labels.append(labels.cpu())
+                for task in self.model.tasks:
+                    all_preds[task].append(outputs[task].cpu())
+                    all_labels[task].append(labels[task].cpu())
         
-        preds = torch.cat(all_preds)
-        labels = torch.cat(all_labels)
+        for task in self.model.tasks:
+            all_preds[task] = torch.cat(all_preds[task])
+            all_labels[task] = torch.cat(all_labels[task])
         
-        metrics = compute_metrics(labels, preds)
+        metrics = compute_metrics_multitask(all_labels, all_preds)
         return metrics
     
     def testing(self):
-        return self.validate(self.test_loader)
-    
-    def save_checkpoint(self, filename):
-        Path('experiments').mkdir(exist_ok=True)
-        torch.save(self.model.state_dict(), f'experiments/{filename}')
-
-    def _loss_function(self):
-        loss_type = self.train_cfg['loss_function']
-        params = self.train_cfg.get('loss_params', {})
+        print("\n" + "="*60)
+        print("Evaluating on test set...")
         
-        if loss_type == 'weighted_bce':
-            pos_weight = torch.tensor([287.0 / 76.0])  # 3.78 = 287 / 76
-            return nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        test_metrics = self.validate(self.test_loader)
         
-        elif loss_type == 'focal':
-            return FocalLoss(
-                alpha=params.get('alpha'),
-                gamma=params.get('gamma'),
-                reduction=params.get('reduction', 'mean')
-            )
+        print(f"\nTest Metrics:")
+        for task in self.model.tasks:
+            task_metrics = test_metrics[task]
+            print(f"  {task}:")
+            print(f"    F2: {task_metrics['f2']:.4f} | "
+                  f"Acc: {task_metrics['accuracy']:.4f} | "
+                  f"AUC: {task_metrics['auc']:.4f}")
+            
+        return test_metrics
     
-        return nn.BCELoss()
+    def save_checkpoint(self):
+        path = os.path.join(self.train_cfg['checkpoint_dir'], self.train_cfg['checkpoint_name'])
+        torch.save(self.model.state_dict(), path)
     
     def _build_scheduler(self):
         scheduler_type = self.train_cfg.get('scheduler')
@@ -184,7 +236,7 @@ class Trainer:
 
 class FocalLoss(nn.Module):
     def __init__(self, alpha=0.79, gamma=2.0, reduction='mean'):
-        super(self).__init__()
+        super().__init__()
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
@@ -204,3 +256,35 @@ class FocalLoss(nn.Module):
             return focal_loss.sum()
         else:
             return focal_loss
+        
+class MultiTaskLoss(nn.Module):
+    def __init__(self, task_weights, loss_type, loss_params=None):
+        super().__init__()
+        self.task_weights = task_weights
+        loss_params = loss_params or {}
+        
+        # Create loss function per task
+        self.task_losses = nn.ModuleDict()
+        for task in task_weights.keys():
+            if loss_type == 'focal':
+                loss_func = FocalLoss
+            elif loss_type == 'bce':
+                loss_func = nn.BCELoss
+            elif loss_type == 'weighted_bce':
+                loss_func = nn.BCEWithLogitsLoss
+            else:
+                raise ValueError(f"Unknown loss type: {loss_type}")
+            self.task_losses[task] = loss_func(**loss_params)
+    
+    def forward(self, predictions, targets):
+        total_loss = 0
+        task_losses_dict = {}
+        
+        for task in self.task_weights.keys():
+            if task in predictions and task in targets:
+                task_loss = self.task_losses[task](predictions[task], targets[task])
+                weighted_loss = self.task_weights[task] * task_loss
+                total_loss += weighted_loss
+                task_losses_dict[task] = task_loss.item()
+        
+        return total_loss, task_losses_dict
