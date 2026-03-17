@@ -2,7 +2,7 @@ import argparse
 from src.utils import load_config, set_seed
 from src.data_loader import get_dataloaders
 from src.models import build_model
-from src.trainer import Trainer
+from src.trainer import Trainer, TraditionalTrainer
 import pandas as pd
 
 def main(args):
@@ -48,8 +48,9 @@ def main(args):
     print("Building model...")
     model = build_model(config)
     print(f"Model parameters: {model.num_parameters:,}\n")
-    
-    trainer = Trainer(model, config, train_loader, val_loader, test_loader)
+
+    trainer = Trainer if config['model']['type'] != 'rf_baseline' else TraditionalTrainer
+    trainer = trainer(model, config, train_loader, val_loader, test_loader)
     trainer.train()
     test_result = trainer.testing()
     

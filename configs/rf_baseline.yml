@@ -1,0 +1,11 @@
+_base_: base.yml
+
+experiment_name: "rf_baseline"
+
+model:
+  type: "rf_baseline"
+  params:
+    max_depth: 6
+    min_samples_split: 2
+    n_estimators: 100
+    class_weight: "balanced"

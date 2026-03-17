@@ -3,6 +3,8 @@ import random
 import numpy as np
 import torch
 from pathlib import Path
+import torch.nn as nn
+import torch.nn.functional as F
 
 def load_config(config_path):
     config_path = Path(config_path)
@@ -57,3 +59,54 @@ def save_config(config, save_path):
     
     with open(save_path, 'w') as f:
         yaml.dump(config, f, default_flow_style=False, indent=2)
+
+
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=0.79, gamma=2.0, reduction='mean'):
+        super().__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+    
+    def forward(self, inputs, targets):
+        bce_loss = F.binary_cross_entropy_with_logits(inputs, targets.float(), reduction='none')
+        p_t = torch.exp(-bce_loss)
+        alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
+        focal_weight = alpha_t * (1 - p_t) ** self.gamma
+        
+        focal_loss = focal_weight * bce_loss
+        
+        if self.reduction == 'mean':
+            return focal_loss.mean()
+        elif self.reduction == 'sum':
+            return focal_loss.sum()
+        else:
+            return focal_loss
+        
+class MultiTaskLoss(nn.Module):
+    def __init__(self, task_weights, loss_type, loss_params=None):
+        super().__init__()
+        self.task_weights = task_weights
+        loss_params = loss_params or {}
+        
+        self.task_losses = nn.ModuleDict()
+        for task in task_weights.keys():
+            if loss_type == 'focal':
+                self.task_losses[task] = FocalLoss(**loss_params)
+            elif loss_type in ['bce', 'weighted_bce']:
+                self.task_losses[task] = nn.BCEWithLogitsLoss(**loss_params)
+            else:
+                raise ValueError(f"Unknown loss type: {loss_type}")
+    
+    def forward(self, predictions, targets):
+        total_loss = 0
+        task_losses_dict = {}
+        
+        for task in self.task_weights.keys():
+            if task in predictions and task in targets:
+                task_loss = self.task_losses[task](predictions[task], targets[task].float())
+                weighted_loss = self.task_weights[task] * task_loss
+                total_loss += weighted_loss
+                task_losses_dict[task] = task_loss.item()
+        
+        return total_loss, task_losses_dict

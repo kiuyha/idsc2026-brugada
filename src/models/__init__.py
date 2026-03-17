@@ -1,11 +1,13 @@
 from .resnet_baseline import ResNetBaseline
 from .spatial_gnn import SpatialGNN
 from .temporal_gnn import TemporalGNN
+from .rf_baseline import RFBaseline
 
 MODEL_REGISTRY = {
+    'rf_baseline':RFBaseline,
     'resnet_baseline': ResNetBaseline,
     'spatial_gnn': SpatialGNN,
-    'temporal_gnn': TemporalGNN
+    'temporal_gnn': TemporalGNN,
 }
 
 def build_model(config):

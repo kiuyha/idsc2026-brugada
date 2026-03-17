@@ -1,14 +1,14 @@
 import torch
-import torch.nn as nn
 from tqdm import tqdm
 import os
 from src.metrics import compute_metrics_multitask
 from src.utils import get_device
-import torch.nn.functional as F
 from torch.amp import autocast, GradScaler
 from torch.optim.lr_scheduler import LinearLR, ReduceLROnPlateau, StepLR, CosineAnnealingLR, SequentialLR
 from torch.nn.utils import clip_grad_norm_
 from src.models.base import BaseECGModel
+import numpy as np
+from src.utils import MultiTaskLoss
 
 class Trainer:
     def __init__(self, model: BaseECGModel, config, train_loader, val_loader, test_loader):
@@ -198,8 +198,7 @@ class Trainer:
             all_preds[task] = torch.cat(all_preds[task])
             all_labels[task] = torch.cat(all_labels[task])
         
-        metrics = compute_metrics_multitask(all_labels, all_preds, metrics_list=self.metrics_list)
-        return metrics
+        return compute_metrics_multitask(all_labels, all_preds, metrics_list=self.metrics_list)
     
     def testing(self):
         print("\n" + "="*60)
@@ -245,53 +244,83 @@ class Trainer:
             )
         
         return None
+    
+class TraditionalTrainer:
+    def __init__(self, model, config, train_loader, val_loader, test_loader):
+        self.model = model
+        self.config = config
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+        self.test_loader = test_loader
+        self.tasks = model.tasks
+        self.metrics_list = config['evaluation'].get('metrics_list', ['f2', 'acc'])
+ 
+    def _extract_all_data(self, loader):
+        X_all = []
+        y_all = {task: [] for task in self.tasks}
+        
+        for batch in loader:
+            features = self.model.extract_features(batch['signal'])
+            X_all.append(features)
+            
+            for task in self.tasks:
+                y_all[task].append(batch['labels'][task].numpy().flatten())
+                
+        X_matrix = np.concatenate(X_all, axis=0)
+        y_matrix = np.column_stack([np.concatenate(y_all[task]) for task in self.tasks])
 
-class FocalLoss(nn.Module):
-    def __init__(self, alpha=0.79, gamma=2.0, reduction='mean'):
-        super().__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-        self.reduction = reduction
-    
-    def forward(self, inputs, targets):
-        bce_loss = F.binary_cross_entropy_with_logits(inputs, targets.float(), reduction='none')
-        p_t = torch.exp(-bce_loss)
-        alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
-        focal_weight = alpha_t * (1 - p_t) ** self.gamma
+        return X_matrix, y_matrix
+ 
+    def train(self):
+        print("Extracting features from Train Loader...")
+        X_train, y_train = self._extract_all_data(self.train_loader)
+        y_train = y_train.ravel() if len(self.tasks) == 1 else y_train
+
+        print(f"Training Random Forest on {X_train.shape[0]} samples with {X_train.shape[1]} features...")
+        self.model.rf_model.fit(X_train, y_train)
+        print("Training complete!")
         
-        focal_loss = focal_weight * bce_loss
-        
-        if self.reduction == 'mean':
-            return focal_loss.mean()
-        elif self.reduction == 'sum':
-            return focal_loss.sum()
+        val_metrics = self.validate()
+        print(f"\nValidation Metrics:")
+        for task in self.model.tasks:
+            task_metrics = val_metrics[task]
+            print(f"  {task}:")
+            for metric, value in task_metrics.items():
+                print(f"    {metric.capitalize()}: {value:.4f}")
+ 
+    def validate(self, loader=None):
+        if loader is None:
+            loader = self.val_loader
+ 
+        X, y_true_matrix = self._extract_all_data(loader)
+        raw_probs = self.model.rf_model.predict_proba(X)
+
+        if isinstance(raw_probs, np.ndarray):
+            probs_list = [raw_probs]
         else:
-            return focal_loss
-        
-class MultiTaskLoss(nn.Module):
-    def __init__(self, task_weights, loss_type, loss_params=None):
-        super().__init__()
-        self.task_weights = task_weights
-        loss_params = loss_params or {}
-        
-        self.task_losses = nn.ModuleDict()
-        for task in task_weights.keys():
-            if loss_type == 'focal':
-                self.task_losses[task] = FocalLoss(**loss_params)
-            elif loss_type in ['bce', 'weighted_bce']:
-                self.task_losses[task] = nn.BCEWithLogitsLoss(**loss_params)
-            else:
-                raise ValueError(f"Unknown loss type: {loss_type}")
-    
-    def forward(self, predictions, targets):
-        total_loss = 0
-        task_losses_dict = {}
-        
-        for task in self.task_weights.keys():
-            if task in predictions and task in targets:
-                task_loss = self.task_losses[task](predictions[task], targets[task].float())
-                weighted_loss = self.task_weights[task] * task_loss
-                total_loss += weighted_loss
-                task_losses_dict[task] = task_loss.item()
-        
-        return total_loss, task_losses_dict
+            probs_list = raw_probs
+
+        all_preds = {
+            task: torch.tensor(probs_list[i][:, 1] if probs_list[i].ndim == 2 else probs_list[i].flatten(), dtype=torch.float32)
+            for i, task in enumerate(self.tasks)
+        }
+        all_labels = {
+            task: torch.tensor(y_true_matrix[:, i], dtype=torch.float32)
+            for i, task in enumerate(self.tasks)
+        }
+ 
+        return compute_metrics_multitask(all_labels, all_preds, metrics_list=self.metrics_list)
+ 
+    def testing(self):
+        print("\n" + "="*60)
+        print("Evaluating on test set...")
+ 
+        test_metrics = self.validate(self.test_loader)
+ 
+        print(f"\nTest Metrics:")
+        for task, task_metrics in test_metrics.items():
+            print(f"  {task}:")
+            for metric, value in task_metrics.items():
+                print(f"    {metric.capitalize()}: {value:.4f}")
+ 
+        return test_metrics
