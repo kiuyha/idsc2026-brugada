@@ -4,9 +4,10 @@ from pathlib import Path
 from src.utils import load_config
 
 CONFIGS = [
-    'configs/resnet_baseline.yml',
-    'configs/spatial_gnn.yml',
-    'configs/temporal_gnn.yml',
+    'configs/best/rf_baseline.yml',
+    'configs/best/resnet_baseline.yml',
+    'configs/best/spatial_gnn.yml',
+    'configs/best/temporal_gnn.yml',
 ]
 
 def run_experiment(config_path):
