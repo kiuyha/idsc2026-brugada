@@ -23,7 +23,7 @@ def compute_metrics(labels, predictions, threshold=0.5, metrics_list=['accuracy'
     preds_binary = (predictions >= threshold).astype(int)
     
     return {
-        METRICS[metric](labels, preds_binary, zero_division=0)
+        METRICS[metric](labels, preds_binary, *{'zero_division': 0} if metric == 'accuracy' else {})
 
         if metric != 'auc'
         else METRICS[metric](labels, predictions) if len(np.unique(labels)) > 1 else 0.0
