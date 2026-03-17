@@ -52,7 +52,13 @@ def main(args):
     trainer = Trainer(model, config, train_loader, val_loader, test_loader)
     trainer.train()
     test_result = trainer.testing()
-    pd.DataFrame(test_result).to_csv(f"experiments/{config['experiment_name']}.csv", index=False)
+    
+    flat_results = {}
+    for task, metrics in test_result.items():
+        for metric, value in metrics.items():
+            flat_results[f"{task}_{metric}"] = value
+
+    pd.DataFrame([flat_results]).to_csv(f"experiments/{config['experiment_name']}.csv", index=False)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

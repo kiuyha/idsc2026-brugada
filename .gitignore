@@ -209,3 +209,4 @@ __marimo__/
 experiments/*
 !experiments/.gitkeep
 test*
+configs/variants
