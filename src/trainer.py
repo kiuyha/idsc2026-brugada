@@ -18,10 +18,15 @@ class Trainer:
         self.test_loader = test_loader
         
         self.train_cfg = config['training']
+        eval_cfg = config['evaluation']
+
         self.epochs = self.train_cfg['epochs']
         self.lr = self.train_cfg['learning_rate']
         self.weight_decay = self.train_cfg['weight_decay']
         self.patience = self.train_cfg.get('early_stopping_patience', 15)
+        self.primary_metric = eval_cfg.get('primary_metric', 'f2')
+        self.metric_list = eval_cfg.get('metric_list', ['f2', 'acc'])
+        
         self.device = get_device(config)
         self.model.to(self.device)
         
@@ -54,7 +59,7 @@ class Trainer:
         self.device_name = config.get('device', 'cpu')
         self.scaler = GradScaler(self.device_name)
 
-        self.best_val_f2 = 0.0
+        self.best_metric_val = 0.0
         self.patience_counter = 0
         self.primary_task = list(task_weights.keys())[0]
         
@@ -127,20 +132,19 @@ class Trainer:
             for task in self.model.tasks:
                 task_metrics = val_metrics[task]
                 print(f"  {task}:")
-                print(f"    F2: {task_metrics['f2']:.4f} | "
-                  f"Acc: {task_metrics['accuracy']:.4f} | "
-                  f"AUC: {task_metrics['auc']:.4f}")
+                for metric, value in task_metrics.items():
+                    print(f"    {metric.capitalize()}: {value:.4f}")
             
             current_lr = self.optimizer.param_groups[0]['lr']
             print(f"\nLearning Rate: {current_lr:.6f}")
 
             # Early stopping
-            primary_f2 = val_metrics[self.primary_task]['f2']
-            if primary_f2 > self.best_val_f2:
-                self.best_val_f2 = primary_f2
+            primary_metric = val_metrics[self.primary_task][self.primary_metric]
+            if primary_metric > self.best_metric_val:
+                self.best_metric_val = primary_metric
                 self.patience_counter = 0
                 self.save_checkpoint()
-                print(f"New best {self.primary_task} F2: {primary_f2:.4f}")
+                print(f"New best {self.primary_task} F2: {primary_metric:.4f}")
             else:
                 self.patience_counter += 1
                 print(f"No improvement ({self.patience_counter}/{self.patience})")
@@ -185,7 +189,7 @@ class Trainer:
             all_preds[task] = torch.cat(all_preds[task])
             all_labels[task] = torch.cat(all_labels[task])
         
-        metrics = compute_metrics_multitask(all_labels, all_preds)
+        metrics = compute_metrics_multitask(all_labels, all_preds, metrics_list=self.metrics_list)
         return metrics
     
     def testing(self):
@@ -198,10 +202,9 @@ class Trainer:
         for task in self.model.tasks:
             task_metrics = test_metrics[task]
             print(f"  {task}:")
-            print(f"    F2: {task_metrics['f2']:.4f} | "
-                  f"Acc: {task_metrics['accuracy']:.4f} | "
-                  f"AUC: {task_metrics['auc']:.4f}")
-            
+            for metric, value in task_metrics.items():
+                print(f"    {metric.capitalize()}: {value:.4f}")
+
         return test_metrics
     
     def save_checkpoint(self):

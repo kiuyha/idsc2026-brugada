@@ -85,7 +85,7 @@ training:
   verbose: true
 
 evaluation:
-  metrics: ["accuracy", "precision", "recall", "f1", "f2", "auc"]
+  metrics_list: ["accuracy", "precision", "recall", "f1", "f2", "auc"]
   primary_metric: "f2"
 
 # Hardware
