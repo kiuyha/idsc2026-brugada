@@ -25,7 +25,7 @@ class Trainer:
         self.weight_decay = self.train_cfg['weight_decay']
         self.patience = self.train_cfg.get('early_stopping_patience', 15)
         self.primary_metric = eval_cfg.get('primary_metric', 'f2')
-        self.metric_list = eval_cfg.get('metric_list', ['f2', 'acc'])
+        self.metrics_list = eval_cfg.get('metrics_list', ['f2', 'acc'])
         
         self.device = get_device(config)
         self.model.to(self.device)
