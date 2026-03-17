@@ -22,14 +22,15 @@ def compute_metrics(labels, predictions, threshold=0.5, metrics_list=['accuracy'
     predictions = predictions.flatten()
     preds_binary = (predictions >= threshold).astype(int)
     
-    return {
-        METRICS[metric](labels, preds_binary, *{'zero_division': 0} if metric == 'accuracy' else {})
-
-        if metric != 'auc'
-        else METRICS[metric](labels, predictions) if len(np.unique(labels)) > 1 else 0.0
-
-        for metric in metrics_list
-    }
+    results = {}
+    for metric in metrics_list:
+        if metric == 'auc':
+            results[metric] = METRICS[metric](labels, predictions) if len(np.unique(labels)) > 1 else 0.0
+        else:
+            kwargs = {'zero_division': 0} if metric == 'accuracy' else {}
+            results[metric] = METRICS[metric](labels, preds_binary, **kwargs)
+            
+    return results
     
 def compute_metrics_multitask(labels_dict, predictions_dict, threshold=0.5, metrics_list=['accuracy', 'precision', 'recall', 'f1', 'f2', 'auc']):
     all_metrics = {}
