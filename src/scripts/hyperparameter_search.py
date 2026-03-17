@@ -48,12 +48,10 @@ def create_config_variant(base_config_path, params, variant_id):
             config['training'][key] = float(value)
         elif key in ['dropout']:
             config['model']['params'][key] = float(value)
-        elif key in ['resnet_channels', 'hidden_dim', 'num_gnn_layers', 
-                     'correlation_threshold', 'pooling']:
+        elif key in ['resnet_channels', 'hidden_dim', 'num_gnn_layers', 'pooling']:
             config['model']['params'][key] = value
-        else:
-            if key in ['correlation_threshold']:
-                config['data'][key] = float(value)
+        elif key in ['correlation_threshold']:
+            config['data'][key] = float(value)
     
     model_type = config['model']['type']
     config['experiment_name'] = f"{model_type}_variant_{variant_id}"
@@ -68,10 +66,8 @@ def create_config_variant(base_config_path, params, variant_id):
 
 
 def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_trials=None):
-    print(f"\n{'='*80}")
     print(f"Hyperparameter Search: {model_type}")
     print(f"Search Type: {search_type}")
-    print(f"{'='*80}\n")
     
     search_space = SEARCH_SPACES[model_type]
     base_config_path = f"configs/{model_type}.yml"
@@ -96,7 +92,8 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
         for _ in range(n_random):
             params = {}
             for param_name, param_values in search_space.items():
-                params[param_name] = np.random.choice(param_values)
+                idx = np.random.randint(len(param_values))
+                params[param_name] = param_values[idx]
             param_combinations.append(params)
         
         print(f"Random search: {n_random} random samples")
