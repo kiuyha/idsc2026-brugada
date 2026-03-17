@@ -6,7 +6,7 @@ import yaml
 import json
 from itertools import product
 import argparse
-from src.utils import load_config
+from src.utils import load_config, set_seed
 
 SEARCH_SPACES = {
     'resnet_baseline': {
@@ -86,6 +86,7 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
     
     base_config = load_config(base_config_path)
     
+    set_seed(base_config['seed'])
     primary_task = list(base_config['tasks'].keys())[0]
     base_metric = base_config.get('evaluation', {}).get('primary_metric', 'f2')
     
