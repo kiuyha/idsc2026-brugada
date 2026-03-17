@@ -58,7 +58,7 @@ class BrugadaDataset(Dataset):
         }
         
         # Compute graph structure if needed
-        if self.compute_graphs:
+        if self.model_type == 'spatial_gnn':
             corr_adj = compute_corr_adjacency(signal)
             anatomical_adj = build_anatomical_adjacency()
             hybrid_adj_matrix = self.anatomic_weight * anatomical_adj + (1 - self.anatomic_weight) * corr_adj
