@@ -32,8 +32,8 @@ class SpatialGNN(BaseECGModel):
             raise ValueError(f"Unknown GNN type: {gnn_type}")
         
         self.gnns = nn.ModuleList([
-            GNN(channels[-1], hidden_dim),
-            *[GNN(hidden_dim, hidden_dim) for _ in range(num_gnn_layers - 1)],
+            GNN(channels[-1], hidden_dim, add_self_loops=False),
+            *[GNN(hidden_dim, hidden_dim, add_self_loops=False) for _ in range(num_gnn_layers - 1)],
         ])
         
         self.dropout = nn.Dropout(dropout)
