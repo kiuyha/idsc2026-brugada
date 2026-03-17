@@ -56,6 +56,7 @@ class TemporalGNN(BaseECGModel):
     
     def get_embeddings(self, x):
         batch_size = x.shape[0]
+        edge_weight = edge_weight.clamp(-1.0, 1.0)
         num_leads = 12
         
         lead_embeddings = []

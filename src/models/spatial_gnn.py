@@ -31,6 +31,7 @@ class SpatialGNN(BaseECGModel):
         else:
             raise ValueError(f"Unknown GNN type: {gnn_type}")
         
+        # Disable self_loops since preprocessing already handles this
         self.gnns = nn.ModuleList([
             GNN(channels[-1], hidden_dim, add_self_loops=False),
             *[GNN(hidden_dim, hidden_dim, add_self_loops=False) for _ in range(num_gnn_layers - 1)],
@@ -56,6 +57,7 @@ class SpatialGNN(BaseECGModel):
     
     def get_embeddings(self, x, edge_index=None, edge_weight=None, layer='final'):
         batch_size = x.shape[0]
+        edge_weight = edge_weight.clamp(-1.0, 1.0)
         
         # Extract temporal features using ResNet
         lead_features = []

@@ -10,35 +10,35 @@ from src.utils import load_config, set_seed
 
 SEARCH_SPACES = {
     'resnet_baseline': {
-        'learning_rate': [0.0001, 0.0003, 0.0005, 0.001],
-        'weight_decay': [0.0001, 0.001, 0.01],
-        'dropout': [0.3, 0.4, 0.5],
+        'learning_rate': [0.0008, 0.001, 0.0012, 0.0015],
+        'weight_decay': [0.0005, 0.001, 0.005, 0.01],
+        'dropout': [0.35, 0.4, 0.45, 0.5],
         'resnet_channels': [
-            [16, 32, 64],
             [32, 64, 128],
-            [32, 64, 128, 256]
+            [32, 64, 128, 256],
+            [48, 96, 192],
         ],
         'enable_basal_pattern': [True, False],
         'enable_sudden_death': [True, False],
     },
-    
+
     'spatial_gnn': {
-        'learning_rate': [0.0001, 0.0003, 0.0005],
-        'weight_decay': [0.001, 0.01, 0.02],
-        'dropout': [0.3, 0.4, 0.5],
-        'hidden_dim': [32, 64, 128],
-        'num_gnn_layers': [2, 3, 4],
-        'correlation_threshold': [0.2, 0.3, 0.4],
+        'learning_rate': [0.0005, 0.0008, 0.001, 0.0015],
+        'weight_decay': [0.0005, 0.001, 0.005, 0.01],
+        'dropout': [0.35, 0.4, 0.45, 0.5],
+        'hidden_dim': [64, 128, 192],
+        'num_gnn_layers': [2, 3],
+        'correlation_threshold': [0.2, 0.25, 0.3],
         'enable_basal_pattern': [True, False],
         'enable_sudden_death': [True, False],
     },
-    
+
     'temporal_gnn': {
-        'learning_rate': [0.0003, 0.0005, 0.001],
-        'weight_decay': [0.001, 0.01],
-        'dropout': [0.3, 0.4, 0.5],
-        'hidden_dim': [32, 64, 128],
-        'num_gnn_layers': [2, 3, 4],
+        'learning_rate': [0.0008, 0.001, 0.0012, 0.0015],
+        'weight_decay': [0.0005, 0.001, 0.005],
+        'dropout': [0.35, 0.4, 0.45, 0.5],
+        'hidden_dim': [64, 128, 192],
+        'num_gnn_layers': [2, 3],
         'pooling': ['mean', 'max', 'attention'],
         'enable_basal_pattern': [True, False],
         'enable_sudden_death': [True, False],
