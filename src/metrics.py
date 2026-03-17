@@ -27,7 +27,7 @@ def compute_metrics(labels, predictions, threshold=0.5, metrics_list=['accuracy'
         if metric == 'auc':
             results[metric] = METRICS[metric](labels, predictions) if len(np.unique(labels)) > 1 else 0.0
         else:
-            kwargs = {'zero_division': 0} if metric == 'accuracy' else {}
+            kwargs = {'zero_division': 0} if metric != 'accuracy' else {}
             results[metric] = METRICS[metric](labels, preds_binary, **kwargs)
             
     return results

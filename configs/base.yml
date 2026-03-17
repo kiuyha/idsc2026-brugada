@@ -90,4 +90,4 @@ evaluation:
 
 # Hardware
 device: "auto" # Options: "cpu", "cuda", "auto"
-num_workers: 4
+num_workers: -1

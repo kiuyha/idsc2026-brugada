@@ -144,12 +144,14 @@ def get_dataloaders(config):
     train_dataset = torch.utils.data.Subset(full_dataset, train_indices)
     val_dataset = torch.utils.data.Subset(full_dataset, val_indices)
     test_dataset = torch.utils.data.Subset(full_dataset, test_indices)
+
+    num_workers = config['num_workers'] if config.get('num_workers') > 0 else os.cpu_count()
     
     train_loader = DataLoader(
         train_dataset,
         batch_size=data_cfg.get('batch_size', 16),
         shuffle=data_cfg.get('train_shuffle', True),
-        num_workers=config['num_workers'] if config.get('num_workers') > 0 else 0,
+        num_workers=num_workers,
         pin_memory=True if torch.cuda.is_available() else False,
         collate_fn=collate_fn_graph
     )
@@ -158,7 +160,7 @@ def get_dataloaders(config):
         val_dataset,
         batch_size=data_cfg.get('batch_size', 16),
         shuffle=False,
-        num_workers=config['num_workers'] if config.get('num_workers') > 0 else 0,
+        num_workers=num_workers,
         pin_memory=True if torch.cuda.is_available() else False,
         collate_fn=collate_fn_graph
     )
@@ -167,7 +169,7 @@ def get_dataloaders(config):
         test_dataset,
         batch_size=data_cfg.get('batch_size', 16),
         shuffle=False,
-        num_workers=config['num_workers'] if config.get('num_workers') > 0 else 0,
+        num_workers=num_workers,
         pin_memory=True if torch.cuda.is_available() else False,
         collate_fn=collate_fn_graph
     )
