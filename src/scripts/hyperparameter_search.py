@@ -6,7 +6,7 @@ import yaml
 import json
 from itertools import product
 import argparse
-from utils import load_config
+from src.utils import load_config
 
 SEARCH_SPACES = {
     'resnet_baseline': {

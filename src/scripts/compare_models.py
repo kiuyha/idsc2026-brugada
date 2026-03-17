@@ -1,7 +1,7 @@
 import subprocess
 import pandas as pd
 from pathlib import Path
-from utils import load_config
+from src.utils import load_config
 
 CONFIGS = [
     'configs/resnet_baseline.yml',
