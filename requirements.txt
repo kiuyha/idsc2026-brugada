@@ -7,6 +7,7 @@ aiohappyeyeballs==2.6.1
 aiohttp==3.13.3
     # via
     #   idsc2026-brugada (pyproject.toml)
+    #   torch-geometric
     #   wfdb
 aiosignal==1.4.0
     # via
@@ -65,6 +66,7 @@ fsspec==2026.2.0
     # via
     #   idsc2026-brugada (pyproject.toml)
     #   torch
+    #   torch-geometric
     #   wfdb
 idna==3.11
     # via
@@ -75,6 +77,9 @@ jinja2==3.1.6
     # via
     #   idsc2026-brugada (pyproject.toml)
     #   torch
+    #   torch-geometric
+joblib==1.5.3
+    # via scikit-learn
 kiwisolver==1.5.0
     # via
     #   idsc2026-brugada (pyproject.toml)
@@ -106,8 +111,10 @@ numpy==2.2.6
     #   contourpy
     #   matplotlib
     #   pandas
+    #   scikit-learn
     #   scipy
     #   soundfile
+    #   torch-geometric
     #   wfdb
 nvidia-cublas-cu12==12.8.4.1
     # via
@@ -192,6 +199,8 @@ propcache==0.4.1
     #   idsc2026-brugada (pyproject.toml)
     #   aiohttp
     #   yarl
+psutil==7.2.2
+    # via torch-geometric
 pycparser==3.0
     # via
     #   idsc2026-brugada (pyproject.toml)
@@ -200,6 +209,7 @@ pyparsing==3.3.2
     # via
     #   idsc2026-brugada (pyproject.toml)
     #   matplotlib
+    #   torch-geometric
 python-dateutil==2.9.0.post0
     # via
     #   idsc2026-brugada (pyproject.toml)
@@ -209,13 +219,19 @@ pytz==2026.1.post1
     # via
     #   idsc2026-brugada (pyproject.toml)
     #   pandas
+pyyaml==6.0.3
+    # via idsc2026-brugada (pyproject.toml)
 requests==2.32.5
     # via
     #   idsc2026-brugada (pyproject.toml)
+    #   torch-geometric
     #   wfdb
+scikit-learn==1.7.2
+    # via idsc2026-brugada (pyproject.toml)
 scipy==1.15.3
     # via
     #   idsc2026-brugada (pyproject.toml)
+    #   scikit-learn
     #   wfdb
 six==1.17.0
     # via
@@ -229,8 +245,16 @@ sympy==1.14.0
     # via
     #   idsc2026-brugada (pyproject.toml)
     #   torch
+threadpoolctl==3.6.0
+    # via scikit-learn
 torch==2.10.0
     # via idsc2026-brugada (pyproject.toml)
+torch-geometric==2.7.0
+    # via idsc2026-brugada (pyproject.toml)
+tqdm==4.67.3
+    # via
+    #   idsc2026-brugada (pyproject.toml)
+    #   torch-geometric
 triton==3.6.0
     # via
     #   idsc2026-brugada (pyproject.toml)
@@ -251,6 +275,8 @@ urllib3==2.6.3
     #   requests
 wfdb==4.3.1
     # via idsc2026-brugada (pyproject.toml)
+xxhash==3.6.0
+    # via torch-geometric
 yarl==1.23.0
     # via
     #   idsc2026-brugada (pyproject.toml)
