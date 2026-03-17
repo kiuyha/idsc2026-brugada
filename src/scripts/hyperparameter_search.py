@@ -18,6 +18,8 @@ SEARCH_SPACES = {
             [32, 64, 128],
             [32, 64, 128, 256]
         ],
+        'enable_basal_pattern': [True, False],
+        'enable_sudden_death': [True, False],
     },
     
     'spatial_gnn': {
@@ -27,6 +29,8 @@ SEARCH_SPACES = {
         'hidden_dim': [32, 64, 128],
         'num_gnn_layers': [2, 3, 4],
         'correlation_threshold': [0.2, 0.3, 0.4],
+        'enable_basal_pattern': [True, False],
+        'enable_sudden_death': [True, False],
     },
     
     'temporal_gnn': {
@@ -36,6 +40,8 @@ SEARCH_SPACES = {
         'hidden_dim': [32, 64, 128],
         'num_gnn_layers': [2, 3, 4],
         'pooling': ['mean', 'max', 'attention'],
+        'enable_basal_pattern': [True, False],
+        'enable_sudden_death': [True, False],
     }
 }
 
@@ -52,6 +58,12 @@ def create_config_variant(base_config_path, params, variant_id):
             config['model']['params'][key] = value
         elif key in ['correlation_threshold']:
             config['data'][key] = float(value)
+        elif key == 'enable_basal_pattern':
+            if 'basal_pattern' in config.get('tasks', {}):
+                config['tasks']['basal_pattern']['enabled'] = bool(value)
+        elif key == 'enable_sudden_death':
+            if 'sudden_death' in config.get('tasks', {}):
+                config['tasks']['sudden_death']['enabled'] = bool(value)
     
     model_type = config['model']['type']
     config['experiment_name'] = f"{model_type}_variant_{variant_id}"
@@ -73,7 +85,12 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
     base_config_path = f"configs/{model_type}.yml"
     
     base_config = load_config(base_config_path)
-    primary_metric = base_config.get('evaluation', {}).get('primary_metric', 'f2')
+    
+    primary_task = list(base_config['tasks'].keys())[0]
+    base_metric = base_config.get('evaluation', {}).get('primary_metric', 'f2')
+    
+    primary_metric = f"{primary_task}_{base_metric}"
+    acc_metric = f"{primary_task}_accuracy"
     
     if search_type == 'grid':
         param_names = list(search_space.keys())
@@ -136,7 +153,8 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
             results.append(trial_results)
             
             metric_value = trial_results.get(primary_metric, 0)
-            print(f"Result - {primary_metric}: {metric_value:.4f} | Acc: {trial_results['accuracy']:.4f}")
+            accuracy_value = trial_results.get(acc_metric, 0)
+            print(f"Result - {primary_metric}: {metric_value:.4f} | Acc: {accuracy_value:.4f}")
         else:
             print(f"Results not found: {results_path}")
     
@@ -154,21 +172,23 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
         print(f"\nTop 5 Configurations (sorted by {primary_metric}):")
         top5 = results_df.head(5)
         
-        for idx, row in enumerate(top5.itertuples(), 1):
+        for idx, (_, row) in enumerate(top5.iterrows(), 1):
             print(f"\nRank {idx}:")
-            print(f"  {primary_metric.upper()}: {getattr(row, primary_metric):.4f} | Accuracy: {row.accuracy:.4f}")
-            print(f"  Learning Rate: {row.learning_rate}")
-            print(f"  Weight Decay: {row.weight_decay}")
-            print(f"  Dropout: {row.dropout}")
-            if hasattr(row, 'hidden_dim'):
-                print(f"  Hidden Dim: {row.hidden_dim}")
-            if hasattr(row, 'num_gnn_layers'):
-                print(f"  GNN Layers: {row.num_gnn_layers}")
+            print(f"  {primary_metric.upper()}: {row[primary_metric]:.4f} | Accuracy: {row[acc_metric]:.4f}")
+            print(f"  Learning Rate: {row['learning_rate']}")
+            print(f"  Weight Decay: {row['weight_decay']}")
+            print(f"  Dropout: {row['dropout']}")
+            if 'hidden_dim' in row:
+                print(f"  Hidden Dim: {row['hidden_dim']}")
+            if 'num_gnn_layers' in row:
+                print(f"  GNN Layers: {row['num_gnn_layers']}")
+            print(f"  Enable Basal Pattern: {row['enable_basal_pattern']}")
+            print(f"  Enable Sudden Death: {row['enable_sudden_death']}")
         
         print(f"\nFull results saved to: {output_path}")
         
         best_params = results_df.iloc[0]
-        best_config_path = f"configs/best_{model_type}.yml"
+        best_config_path = f"configs/{model_type}.yml"
         
         best_config = load_config(base_config_path)
         
@@ -180,10 +200,16 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
                     best_config['training'][param_name] = float(value)
                 elif param_name in ['dropout']:
                     best_config['model']['params'][param_name] = float(value)
+                elif param_name == 'enable_basal_pattern':
+                    if 'basal_pattern' in best_config.get('tasks', {}):
+                        best_config['tasks']['basal_pattern']['enabled'] = bool(value)
+                elif param_name == 'enable_sudden_death':
+                    if 'sudden_death' in best_config.get('tasks', {}):
+                        best_config['tasks']['sudden_death']['enabled'] = bool(value)
                 else:
                     best_config['model']['params'][param_name] = value
         
-        best_config['experiment_name'] = f"best_{model_type}"
+        best_config['experiment_name'] = model_type
         
         with open(best_config_path, 'w') as f:
             yaml.dump(best_config, f, default_flow_style=False)

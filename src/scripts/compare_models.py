@@ -43,7 +43,10 @@ def main():
     print(f"Will run {len(CONFIGS)} experiments\n")
     
     base_config = load_config(CONFIGS[0])
-    primary_metric = base_config.get('evaluation', {}).get('primary_metric', 'f2')
+    primary_task = list(base_config['tasks'].keys())[0]
+    base_metric = base_config.get('evaluation', {}).get('primary_metric', 'f2')
+    
+    primary_metric = f"{primary_task}_{base_metric}"
     
     all_results = []
     
@@ -59,11 +62,11 @@ def main():
             'experiment_name',
             'model_type',
             primary_metric,
-            'accuracy', 
-            'precision',
-            'recall',
-            'f1',
-            'auc'
+            f"{primary_task}_accuracy", 
+            f"{primary_task}_precision",
+            f"{primary_task}_recall",
+            f"{primary_task}_f1",
+            f"{primary_task}_auc"
         ]
         cols = [c for c in cols if c in comparison_df.columns]
         comparison_df = comparison_df[cols]
@@ -79,9 +82,14 @@ def main():
         best_model = comparison_df.iloc[0]
         print(f"\nBest Model: {best_model['experiment_name']}")
         print(f"   {primary_metric.upper()}: {best_model[primary_metric]:.4f}")
-        print(f"   Accuracy: {best_model['accuracy']:.4f}")
-        if 'auc' in best_model:
-            print(f"   AUC: {best_model['auc']:.4f}")
+        
+        acc_col = f"{primary_task}_accuracy"
+        if acc_col in best_model:
+            print(f"   Accuracy: {best_model[acc_col]:.4f}")
+            
+        auc_col = f"{primary_task}_auc"
+        if auc_col in best_model:
+            print(f"   AUC: {best_model[auc_col]:.4f}")
     else:
         print("No results to compare")
 
