@@ -18,9 +18,8 @@ SEARCH_SPACES = {
             [32, 64, 128, 256],
             [48, 96, 192],
         ],
-        # This task is the best throughout runs
-        'enable_basal_pattern': [True],
-        'enable_sudden_death': [False],
+        'enable_basal_pattern': [True, False],
+        'enable_sudden_death': [True, False],
     },
 
     'spatial_gnn': {
@@ -31,8 +30,8 @@ SEARCH_SPACES = {
         'num_gnn_layers': [2, 3, 4],
         'gnn_type': ['gcn', 'gat', 'gin'],
         'correlation_threshold': [0.2, 0.25, 0.3],
-        'enable_basal_pattern': [True],
-        'enable_sudden_death': [False],
+        'enable_basal_pattern': [True, False],
+        'enable_sudden_death': [True, False],
     },
 
     'temporal_gnn': {
@@ -43,8 +42,8 @@ SEARCH_SPACES = {
         'num_gnn_layers': [2, 3, 4],
         'gnn_type': ['gcn', 'gat', 'gin'],
         'pooling': ['mean', 'max', 'attention'],
-        'enable_basal_pattern': [True],
-        'enable_sudden_death': [False],
+        'enable_basal_pattern': [True, False],
+        'enable_sudden_death': [True, False],
     }
 }
 
