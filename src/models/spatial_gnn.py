@@ -78,10 +78,7 @@ class SpatialGNN(BaseECGModel):
         
         h = node_features
         for i, gnn in enumerate(self.gnns):
-            if self.gnn_type == 'gcn' and edge_weight is not None:
-                h = gnn(h, edge_index, edge_weight)
-            else:
-                h = gnn(h, edge_index)
+            h = gnn(h, edge_index, edge_weight)
             
             # Activation (except last layer)
             if i < len(self.gnns) - 1:
