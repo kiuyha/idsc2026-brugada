@@ -23,11 +23,19 @@ def compute_metrics(labels, predictions, threshold=0.5, metrics_list=['accuracy'
     preds_binary = (predictions >= threshold).astype(int)
     
     results = {}
+    results = {}
     for metric in metrics_list:
         if metric == 'auc':
             results[metric] = METRICS[metric](labels, predictions) if len(np.unique(labels)) > 1 else 0.0
         else:
-            kwargs = {'zero_division': 0} if metric != 'accuracy' else {}
+            kwargs = {}
+            
+            if metric in ['precision', 'recall', 'f1', 'f2']:
+                kwargs['zero_division'] = 0
+                
+            if metric == 'f2':
+                kwargs['beta'] = 2
+                
             results[metric] = METRICS[metric](labels, preds_binary, **kwargs)
             
     return results
