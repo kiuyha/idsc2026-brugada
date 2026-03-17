@@ -21,7 +21,7 @@ class ResNetBlock(nn.Module):
         out = self.conv2(out)
         out = self.bn2(out)
         
-        return F.relu(out + identity)
+        return F.silu(out + identity)
     
 class ResNetBaseline(BaseECGModel):
     def __init__(self, config):
