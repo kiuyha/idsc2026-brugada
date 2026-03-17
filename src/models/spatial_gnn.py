@@ -17,7 +17,7 @@ class SpatialGNN(BaseECGModel):
         gnn_type = self.params_cfg.get('gnn_type', "gcn")
 
         self.lead_encoder = nn.ModuleList([
-            ResNetBlock(12, channels[0], kernel_size),
+            ResNetBlock(1, channels[0], kernel_size),
             *[ResNetBlock(channels[i], channels[i+1], kernel_size) for i in range(len(channels) - 1)],
         ])
         self.temporal_pool = nn.AdaptiveAvgPool1d(1)
@@ -77,14 +77,14 @@ class SpatialGNN(BaseECGModel):
         node_features = temporal_embeddings.view(batch_size * self.num_leads, -1)
         
         h = node_features
-        for i, gcn in enumerate(self.gcns):
+        for i, gnn in enumerate(self.gnns):
             if self.gnn_type == 'gcn' and edge_weight is not None:
-                h = gcn(h, edge_index, edge_weight)
+                h = gnn(h, edge_index, edge_weight)
             else:
-                h = gcn(h, edge_index)
+                h = gnn(h, edge_index)
             
             # Activation (except last layer)
-            if i < len(self.gcns) - 1:
+            if i < len(self.gnns) - 1:
                 h = F.silu(h)
         
         return h.view(batch_size, self.num_leads, -1)     

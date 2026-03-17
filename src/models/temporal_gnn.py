@@ -70,12 +70,12 @@ class TemporalGNN(BaseECGModel):
                 node_features = signal.unsqueeze(-1)
                 h = node_features
 
-                for i, gcn in enumerate(self.gcns):
+                for i, gnn in enumerate(self.gnns):
                     if self.gnn_type == 'gcn' and edge_weight is not None:
-                        h = gcn(h, edge_index, edge_weight)
+                        h = gnn(h, edge_index, edge_weight)
                     else:
-                        h = gcn(h, edge_index)
-                    if i < len(self.gcns) - 1:
+                        h = gnn(h, edge_index)
+                    if i < len(self.gnns) - 1:
                         h = F.silu(h)
                 
                 if self.pooling == 'mean':

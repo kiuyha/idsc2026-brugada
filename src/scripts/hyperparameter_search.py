@@ -188,7 +188,7 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
         print(f"\nFull results saved to: {output_path}")
         
         best_params = results_df.iloc[0]
-        best_config_path = f"configs/{model_type}.yml"
+        best_config_path = f"configs/best/{model_type}.yml"
         
         best_config = load_config(base_config_path)
         

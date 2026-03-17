@@ -1,0 +1,78 @@
+data:
+  anatomic_weight: 0.3
+  augmentation:
+    amplitude_scale: 0.1
+    enabled: false
+    noise_std: 0.01
+    time_shift: 0.1
+  batch_size: 16
+  correlation_threshold: 0.3
+  duration: 10
+  leads: 12
+  normalize: zscore_per_lead
+  path: experiments/physionet.org/files/brugada-huca/1.0.0
+  sample_rate: 500
+  self_loops: true
+  test_split: 0.15
+  train_shuffle: true
+  train_split: 0.7
+  val_split: 0.15
+device: auto
+evaluation:
+  metrics_list:
+  - accuracy
+  - precision
+  - recall
+  - f1
+  - f2
+  - auc
+  primary_metric: f2
+experiment_name: resnet_baseline
+model:
+  params:
+    dropout: 0.5
+    hidden_channels:
+    - 32
+    - 64
+    - 128
+    kernel_size: 7
+    resnet_channels:
+    - 32
+    - 64
+    - 128
+    - 256
+  type: resnet_baseline
+num_workers: -1
+seed: 42
+tasks:
+  basal_pattern:
+    enabled: true
+    weight: 0.3
+  brugada:
+    enabled: true
+    weight: 1.0
+  sudden_death:
+    enabled: false
+    weight: 0.3
+training:
+  checkpoint_dir: experiments
+  checkpoint_name: best_model.pt
+  early_stopping_patience: 15
+  epochs: 120
+  gradient_clip_norm: 1.0
+  learning_rate: 0.0003
+  log_interval: 50
+  loss_function: focal
+  loss_params:
+    alpha: 0.79
+    gamma: 2.0
+    reduction: mean
+  min_lr: 1.0e-06
+  optimizer: adamw
+  save_best_only: true
+  save_plots: true
+  scheduler: cosine
+  use_mixing_precision: false
+  verbose: true
+  warmup_epochs: 10
+  weight_decay: 0.01
