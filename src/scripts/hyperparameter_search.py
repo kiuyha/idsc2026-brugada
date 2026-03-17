@@ -12,50 +12,54 @@ SEARCH_SPACES = {
     'resnet_baseline': {
         'learning_rate': [0.0008, 0.001, 0.0012, 0.0015],
         'weight_decay': [0.0005, 0.001, 0.005, 0.01],
-        'dropout': [0.35, 0.4, 0.45, 0.5],
+        'dropout': [0.4, 0.5, 0.6],
         'resnet_channels': [
             [32, 64, 128],
             [32, 64, 128, 256],
             [48, 96, 192],
         ],
-        'enable_basal_pattern': [True, False],
-        'enable_sudden_death': [True, False],
+        # This task is the best throughout runs
+        'enable_basal_pattern': [True],
+        'enable_sudden_death': [False],
     },
 
     'spatial_gnn': {
         'learning_rate': [0.0005, 0.0008, 0.001, 0.0015],
         'weight_decay': [0.0005, 0.001, 0.005, 0.01],
-        'dropout': [0.35, 0.4, 0.45, 0.5],
+        'dropout': [0.4, 0.5, 0.6],
         'hidden_dim': [64, 128, 192],
-        'num_gnn_layers': [2, 3],
-        'correlation_threshold': [0.2, 0.25, 0.3],
+        'num_gnn_layers': [2, 3, 4],
         'gnn_type': ['gcn', 'gat', 'gin'],
-        'enable_basal_pattern': [True, False],
-        'enable_sudden_death': [True, False],
+        'correlation_threshold': [0.2, 0.25, 0.3],
+        'enable_basal_pattern': [True],
+        'enable_sudden_death': [False],
     },
 
     'temporal_gnn': {
         'learning_rate': [0.0008, 0.001, 0.0012, 0.0015],
         'weight_decay': [0.0005, 0.001, 0.005],
-        'dropout': [0.35, 0.4, 0.45, 0.5],
+        'dropout': [0.4, 0.5, 0.6],
         'hidden_dim': [64, 128, 192],
-        'num_gnn_layers': [2, 3],
-        'pooling': ['mean', 'max', 'attention'],
+        'num_gnn_layers': [2, 3, 4],
         'gnn_type': ['gcn', 'gat', 'gin'],
-        'enable_basal_pattern': [True, False],
-        'enable_sudden_death': [True, False],
+        'pooling': ['mean', 'max', 'attention'],
+        'enable_basal_pattern': [True],
+        'enable_sudden_death': [False],
     }
 }
 
-def create_config_variant(base_config_path, params, variant_id):
+def create_config_variant(base_config_path, params, variant_id, seed):
     config = load_config(base_config_path)
+    
+    # Inject the specific seed for this run
+    config['seed'] = seed
     
     for key, value in params.items():
         if key in ['learning_rate', 'weight_decay']:
             config['training'][key] = float(value)
         elif key in ['dropout']:
             config['model']['params'][key] = float(value)
-        elif key in ['resnet_channels', 'hidden_dim', 'num_gnn_layers', 'pooling', 'gnn_type']:
+        elif key in ['resnet_channels', 'hidden_dim', 'num_gnn_layers', 'pooling']:
             config['model']['params'][key] = value
         elif key in ['correlation_threshold']:
             config['data'][key] = float(value)
@@ -67,9 +71,9 @@ def create_config_variant(base_config_path, params, variant_id):
                 config['tasks']['sudden_death']['enabled'] = bool(value)
     
     model_type = config['model']['type']
-    config['experiment_name'] = f"{model_type}_variant_{variant_id}"
+    config['experiment_name'] = f"{model_type}_variant_{variant_id}_seed_{seed}"
     
-    variant_path = f"configs/variants/{model_type}_variant_{variant_id}.yml"
+    variant_path = f"configs/variants/{model_type}_variant_{variant_id}_seed_{seed}.yml"
     Path("configs/variants").mkdir(parents=True, exist_ok=True)
     
     with open(variant_path, 'w') as f:
@@ -87,12 +91,16 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
     
     base_config = load_config(base_config_path)
     
-    set_seed(base_config['seed'])
+    # Set seed once here to ensure the random parameter selection is reproducible
+    set_seed(base_config.get('seed', 42))
+    
     primary_task = list(base_config['tasks'].keys())[0]
     base_metric = base_config.get('evaluation', {}).get('primary_metric', 'f2')
     
     primary_metric = f"{primary_task}_{base_metric}"
     acc_metric = f"{primary_task}_accuracy"
+    
+    test_seeds = [42, 43, 44]
     
     if search_type == 'grid':
         param_names = list(search_space.keys())
@@ -133,50 +141,71 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
         print(f"\n--- Trial {i+1}/{len(param_combinations)} ---")
         print(f"Parameters: {json.dumps(params, indent=2)}")
         
-        config_path, exp_name = create_config_variant(base_config_path, params, i)
+        trial_metrics = []
+        trial_accs = []
+        valid_run = True
         
-        result = subprocess.run(
-            ['python', 'main.py', '--config', config_path],
-            capture_output=True,
-            text=True
-        )
-        
-        if result.returncode != 0:
-            print(f"Error in trial {i+1}")
-            print(result.stderr)
-            continue
-        
-        results_path = f"experiments/{exp_name}.csv"
-        if Path(results_path).exists():
-            trial_results = pd.read_csv(results_path).iloc[0].to_dict()
-            trial_results.update(params)
-            trial_results['trial_id'] = i
-            trial_results['experiment_name'] = exp_name
-            results.append(trial_results)
+        for seed in test_seeds:
+            print(f"  Running Seed {seed}...")
+            config_path, exp_name = create_config_variant(base_config_path, params, i, seed)
             
-            metric_value = trial_results.get(primary_metric, 0)
-            accuracy_value = trial_results.get(acc_metric, 0)
-            print(f"Result - {primary_metric}: {metric_value:.4f} | Acc: {accuracy_value:.4f}")
-        else:
-            print(f"Results not found: {results_path}")
+            result = subprocess.run(
+                ['python', 'main.py', '--config', config_path],
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode != 0:
+                print(f"Error in trial {i+1}, seed {seed}")
+                print(result.stderr)
+                valid_run = False
+                break
+            
+            results_path = f"experiments/{exp_name}.csv"
+            if Path(results_path).exists():
+                trial_results = pd.read_csv(results_path).iloc[0].to_dict()
+                trial_metrics.append(trial_results.get(primary_metric, 0))
+                trial_accs.append(trial_results.get(acc_metric, 0))
+            else:
+                print(f"Results not found: {results_path}")
+                valid_run = False
+                break
+        
+        if valid_run and len(trial_metrics) == len(test_seeds):
+            mean_metric = np.mean(trial_metrics)
+            std_metric = np.std(trial_metrics)
+            mean_acc = np.mean(trial_accs)
+            std_acc = np.std(trial_accs)
+            
+            print(f"Result - {primary_metric}: {mean_metric:.4f} ± {std_metric:.4f} | Acc: {mean_acc:.4f} ± {std_acc:.4f}")
+            
+            agg_results = params.copy()
+            agg_results['trial_id'] = i
+            agg_results[f'{primary_metric}_mean'] = mean_metric
+            agg_results[f'{primary_metric}_std'] = std_metric
+            agg_results[f'{acc_metric}_mean'] = mean_acc
+            agg_results[f'{acc_metric}_std'] = std_acc
+            results.append(agg_results)
     
     if results:
         results_df = pd.DataFrame(results)
-        results_df = results_df.sort_values(primary_metric, ascending=False)
+        
+        # Sort by the mean of the primary metric
+        mean_primary_col = f'{primary_metric}_mean'
+        results_df = results_df.sort_values(mean_primary_col, ascending=False)
         
         output_path = f"experiments/hyperparam_search_{model_type}_{search_type}.csv"
         results_df.to_csv(output_path, index=False)
         
-        print(f"\n{'='*80}")
-        print("HYPERPARAMETER SEARCH RESULTS")
-        print(f"{'='*80}")
+        print("HYPERPARAMETER SEARCH RESULTS (3-Seed Average)")
         
-        print(f"\nTop 5 Configurations (sorted by {primary_metric}):")
+        print(f"\nTop 5 Configurations (sorted by {mean_primary_col}):")
         top5 = results_df.head(5)
         
         for idx, (_, row) in enumerate(top5.iterrows(), 1):
             print(f"\nRank {idx}:")
-            print(f"  {primary_metric.upper()}: {row[primary_metric]:.4f} | Accuracy: {row[acc_metric]:.4f}")
+            print(f"  {primary_metric.upper()}: {row[mean_primary_col]:.4f} ± {row[f'{primary_metric}_std']:.4f}")
+            print(f"  Accuracy: {row[f'{acc_metric}_mean']:.4f} ± {row[f'{acc_metric}_std']:.4f}")
             print(f"  Learning Rate: {row['learning_rate']}")
             print(f"  Weight Decay: {row['weight_decay']}")
             print(f"  Dropout: {row['dropout']}")
@@ -191,8 +220,6 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
         
         best_params = results_df.iloc[0]
         best_config_path = f"configs/best/{model_type}.yml"
-        
-        Path(best_config_path).parent.mkdir(parents=True, exist_ok=True)
         
         best_config = load_config(base_config_path)
         
@@ -222,7 +249,6 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
         
     else:
         print("No successful trials")
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Hyperparameter search")
