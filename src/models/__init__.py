@@ -1,10 +1,10 @@
 from .resnet_baseline import ResNetBaseline
 from .spatial_gnn import SpatialGNN
 from .temporal_gnn import TemporalGNN
-from .rf_baseline import RFBaseline
+from .hgb_baseline import HistBoostBaseline
 
 MODEL_REGISTRY = {
-    'rf_baseline':RFBaseline,
+    'hgb_baseline':HistBoostBaseline,
     'resnet_baseline': ResNetBaseline,
     'spatial_gnn': SpatialGNN,
     'temporal_gnn': TemporalGNN,

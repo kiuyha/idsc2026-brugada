@@ -1,27 +1,31 @@
 import torch
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier
 from src.models.base import BaseECGModel
 
-class RFBaseline(BaseECGModel):
+class HistBoostBaseline(BaseECGModel):
     def __init__(self, config):
         super().__init__(config)
 
-        self.rf_model = RandomForestClassifier(
-            max_depth=self.params_cfg.get('max_depth', 6),
-            min_samples_split=self.params_cfg.get('min_samples_split', 2),
-            n_estimators=self.params_cfg.get('n_estimators', 100),
+        self.model = HistGradientBoostingClassifier(
+            max_iter=self.params_cfg.get('max_iter', 100),
+            min_samples_leaf=self.params_cfg.get('min_samples_leaf', 20),
+            max_depth=self.params_cfg.get('max_depth', None),
             class_weight=self.params_cfg.get('class_weight', 'balanced'),
             random_state=config.get('seed', 42),
-            n_jobs=config.get('num_workers', 1),
         )
         
     def forward(self, x, **kwargs):
         features = self.extract_features(x)
-        return self.rf_model.predict_proba(features)
+        return self.model.predict_proba(features)
     
     @property
     def num_parameters(self):
-        return 0
+        if not hasattr(self.model, '_predictors'):
+            return 0
+            
+        return sum(
+            [tree.nodes for iteration in self.model._predictors for tree in iteration]
+        )
     
     def extract_features(self, x):
         batch_size, num_leads, signal_len = x.shape

@@ -5,7 +5,7 @@ from pathlib import Path
 from src.utils import load_config, save_config
 
 CONFIGS = [
-    'configs/best/rf_baseline.yml',
+    'configs/best/hgb_baseline.yml',
     'configs/best/resnet_baseline.yml',
     'configs/best/spatial_gnn.yml',
     'configs/best/temporal_gnn.yml',

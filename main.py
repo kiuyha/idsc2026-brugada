@@ -49,7 +49,7 @@ def main(args):
     model = build_model(config)
     print(f"Model parameters: {model.num_parameters:,}\n")
 
-    trainer = Trainer if config['model']['type'] != 'rf_baseline' else TraditionalTrainer
+    trainer = Trainer if config['model']['type'] != 'hgb_baseline' else TraditionalTrainer
     trainer = trainer(model, config, train_loader, val_loader, test_loader)
     trainer.train()
     test_result = trainer.testing()

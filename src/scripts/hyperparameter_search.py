@@ -9,11 +9,11 @@ import argparse
 from src.utils import load_config, set_seed, save_config
 
 SEARCH_SPACES = {
-    'rf_baseline': {
+    'hgb_baseline': {
         'max_depth': [3, 4, 5],
-        'min_samples_split': [2, 3, 4],
-        'n_estimators': [50, 100, 200],
-        'class_weight': ['balanced', 'balanced_subsample'],
+        'min_samples_leaf': [20, 30, 40],
+        'max_iter': [50, 100, 200],
+        'class_weight': ['balanced', None],
         'enable_basal_pattern': [True, False],
         'enable_sudden_death': [True, False],
     },
@@ -53,7 +53,7 @@ SEARCH_SPACES = {
     }
 }
 
-RF_MODEL_PARAMS = {'max_depth', 'min_samples_split', 'n_estimators', 'class_weight'}
+HGB_MODEL_PARAMS = {'max_depth', 'min_samples_leaf', 'max_iter', 'class_weight'}
 
 def _apply_param_to_config(config, key, value):
     if key in ['learning_rate', 'weight_decay']:
@@ -65,7 +65,7 @@ def _apply_param_to_config(config, key, value):
     elif key == 'correlation_threshold':
         config['data'][key] = float(value)
 
-    elif key in RF_MODEL_PARAMS:
+    elif key in HGB_MODEL_PARAMS:
         config['model']['params'][key] = value
 
     elif key in ['resnet_channels', 'hidden_dim', 'num_gnn_layers',
@@ -101,11 +101,13 @@ def _safe_parse_value(key, value):
             return ast.literal_eval(value)
         except (ValueError, SyntaxError):
             return value
-    if key in RF_MODEL_PARAMS | {'hidden_dim', 'num_gnn_layers'}:
+    if key in HGB_MODEL_PARAMS | {'hidden_dim', 'num_gnn_layers'}:
         # Numeric columns may survive as-is, but int columns could become floats
-        if key in {'max_depth', 'min_samples_split', 'n_estimators',
+        if key in {'max_depth', 'min_samples_leaf', 'max_iter',
                    'hidden_dim', 'num_gnn_layers'}:
             try:
+                if pd.isna(value) or value == 'None' or value is None:
+                    return None
                 return int(value)
             except (ValueError, TypeError):
                 return value

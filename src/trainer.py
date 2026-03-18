@@ -277,7 +277,7 @@ class TraditionalTrainer:
         y_train = y_train.ravel() if len(self.tasks) == 1 else y_train
 
         print(f"Training Random Forest on {X_train.shape[0]} samples with {X_train.shape[1]} features...")
-        self.model.rf_model.fit(X_train, y_train)
+        self.model.model.fit(X_train, y_train)
         print("Training complete!")
         
         val_metrics = self.validate()
@@ -293,7 +293,7 @@ class TraditionalTrainer:
             loader = self.val_loader
  
         X, y_true_matrix = self._extract_all_data(loader)
-        raw_probs = self.model.rf_model.predict_proba(X)
+        raw_probs = self.model.model.predict_proba(X)
 
         if isinstance(raw_probs, np.ndarray):
             probs_list = [raw_probs]

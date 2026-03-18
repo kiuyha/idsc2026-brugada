@@ -1,0 +1,11 @@
+_base_: base.yml
+
+experiment_name: "hgb_baseline"
+
+model:
+  type: "hgb_baseline"
+  params:
+    max_depth: 6
+    max_iter: 100
+    class_weight: "balanced"
+    min_samples_leaf: 5

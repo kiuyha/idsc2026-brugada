@@ -25,7 +25,7 @@ evaluation:
   - f2
   - auc
   primary_metric: f2
-experiment_name: rf_baseline
+experiment_name: hgb_baseline
 model:
   params:
     class_weight: balanced
@@ -38,7 +38,7 @@ model:
     max_depth: 5
     min_samples_split: 4
     n_estimators: 100
-  type: rf_baseline
+  type: hgb_baseline
 num_workers: -1
 seed: 42
 tasks:
