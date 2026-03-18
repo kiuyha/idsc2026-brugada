@@ -102,7 +102,7 @@ def build_visibility_graph(signal, device=None):
     
     return edge_index, None
 
-def adjacency_to_edge_index(adj_matrix, threshold=0.3, add_self_loops=True):
+def adjacency_to_edge_index(adj_matrix, threshold=0.3):
     num_nodes = adj_matrix.shape[0]
     edge_list = []
     edge_weights = []
@@ -115,11 +115,6 @@ def adjacency_to_edge_index(adj_matrix, threshold=0.3, add_self_loops=True):
                 # Force weights to be positive
                 edge_weights.append(abs(adj_matrix[i, j]))
 
-    if add_self_loops:
-        for i in range(num_nodes):
-            edge_list.append([i, i])
-            edge_weights.append(1.0)
-    
     # Convert to tensors
     if len(edge_list) > 0:
         edge_index = torch.tensor(edge_list, dtype=torch.long).t() 

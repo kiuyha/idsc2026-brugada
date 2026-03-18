@@ -66,7 +66,6 @@ class BrugadaDataset(Dataset):
             edge_index, edge_weight = adjacency_to_edge_index(
                 hybrid_adj_matrix, 
                 threshold=self.correlation_threshold,
-                add_self_loops=self.self_loops
             )
             sample['edge_index'] = edge_index
             sample['edge_weight'] = edge_weight
