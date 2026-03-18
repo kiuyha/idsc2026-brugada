@@ -276,7 +276,7 @@ class TraditionalTrainer:
         X_train, y_train = self._extract_all_data(self.train_loader)
         y_train = y_train.ravel() if len(self.tasks) == 1 else y_train
 
-        print(f"Training Random Forest on {X_train.shape[0]} samples with {X_train.shape[1]} features...")
+        print(f"Training Histogram Boosting on {X_train.shape[0]} samples with {X_train.shape[1]} features...")
         self.model.model.fit(X_train, y_train)
         print("Training complete!")
         
