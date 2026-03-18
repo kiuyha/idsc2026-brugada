@@ -72,7 +72,6 @@ class SpatialGNN(BaseECGModel):
     
     def get_embeddings(self, x, edge_index=None, edge_weight=None, layer='final'):
         batch_size = x.shape[0]
-        edge_weight = edge_weight.clamp(-1.0, 1.0)
         
         # Extract temporal features using ResNet
         lead_features = []
@@ -98,6 +97,7 @@ class SpatialGNN(BaseECGModel):
         h = node_features
         for i, gnn in enumerate(self.gnns):
             if isinstance(gnn, GCNConv) and edge_weight is not None:
+                edge_weight = edge_weight.clamp(-1.0, 1.0)
                 h = gnn(h, edge_index, edge_weight)
             else:
                 h = gnn(h, edge_index)

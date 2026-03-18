@@ -77,12 +77,12 @@ class TemporalGNN(BaseECGModel):
             for sample_idx in range(batch_size):
                 signal = lead_signal[sample_idx]
                 edge_index, edge_weight = build_visibility_graph(signal)
-                edge_weight = edge_weight.clamp(-1.0, 1.0)
                 node_features = signal.unsqueeze(-1)
                 h = node_features
 
                 for i, gnn in enumerate(self.gnns):
                     if isinstance(gnn, GCNConv) and edge_weight is not None:
+                        edge_weight = edge_weight.clamp(-1.0, 1.0)
                         h = gnn(h, edge_index, edge_weight)
                     else:
                         h = gnn(h, edge_index)
