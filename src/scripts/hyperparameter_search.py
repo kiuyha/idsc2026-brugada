@@ -126,8 +126,16 @@ def _print_top_results(results_df, primary_metric, acc_metric, search_space_keys
         print(f"  Accuracy: {row[f'{acc_metric}_mean']:.4f} ± {row[f'{acc_metric}_std']:.4f}")
         # Print every hyperparameter that exists in the search space
         for key in search_space_keys:
-            if key in row and not pd.isna(row[key]):
-                print(f"  {key}: {row[key]}")
+            if key in row:
+                val = row[key]
+                is_missing = False
+                if isinstance(val, (list, tuple, np.ndarray)):
+                    is_missing = False
+                else:
+                    is_missing = pd.isna(val)
+                
+                if not is_missing:
+                    print(f"  {key}: {val}")
 
 def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_trials=None):
     print(f"Hyperparameter Search: {model_type}")
