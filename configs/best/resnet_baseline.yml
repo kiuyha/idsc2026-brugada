@@ -29,7 +29,7 @@ experiment_name: resnet_baseline
 model:
   params:
     dropout: 0.6
-    hidden_channels:
+    resnet_channels:
     - 32
     - 64
     - 128

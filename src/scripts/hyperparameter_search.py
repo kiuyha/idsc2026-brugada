@@ -55,6 +55,8 @@ SEARCH_SPACES = {
 
 HGB_MODEL_PARAMS = {'max_depth', 'min_samples_leaf', 'max_iter', 'class_weight'}
 
+TEST_SEEDS = [42, 43, 44]
+
 def _apply_param_to_config(config, key, value):
     if key in ['learning_rate', 'weight_decay']:
         config['training'][key] = float(value)
@@ -155,8 +157,6 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
     primary_metric = f"{primary_task}_{base_metric}"
     acc_metric = f"{primary_task}_accuracy"
 
-    test_seeds = [42, 43, 44]
-
     if search_type == 'grid':
         param_names = list(search_space.keys())
         param_values = list(search_space.values())
@@ -197,7 +197,7 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
         trial_accs = []
         valid_run = True
 
-        for seed in test_seeds:
+        for seed in TEST_SEEDS:
             print(f"  Running Seed {seed}...")
             config_path, exp_name = create_config_variant(
                 base_config_path, params, i, seed
@@ -225,7 +225,7 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
                 valid_run = False
                 break
 
-        if valid_run and len(trial_metrics) == len(test_seeds):
+        if valid_run and len(trial_metrics) == len(TEST_SEEDS):
             mean_metric = np.mean(trial_metrics)
             std_metric = np.std(trial_metrics)
             mean_acc = np.mean(trial_accs)
