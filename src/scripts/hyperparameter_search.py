@@ -30,27 +30,28 @@ SEARCH_SPACES = {
         'enable_sudden_death': [True, False],
     },
     'spatial_gnn': {
-        'learning_rate': [0.0005, 0.0008, 0.001, 0.0015],
-        'weight_decay': [0.0005, 0.001, 0.005, 0.01],
-        'dropout': [0.4, 0.5, 0.6],
-        'hidden_dim': [64, 128, 192],
-        'num_gnn_layers': [2, 3, 4],
-        'gnn_type': ['gcn', 'gat', 'gin'],
-        'correlation_threshold': [0.2, 0.25, 0.3],
+        'learning_rate': [0.0008, 0.001, 0.0012, 0.0015],
+        'weight_decay': [0.005, 0.01],
+        'dropout': [0.4, 0.5],
+        'hidden_dim': [96, 128, 160],
+        'num_gnn_layers': [2, 3],
+        'gnn_type': ['gcn', 'gat'],
+        'correlation_threshold': [0.3, 0.4, 0.5, 0.6],
+        'anatomic_weight': [0.5, 0.6, 0.7, 0.8],
         'enable_basal_pattern': [True, False],
         'enable_sudden_death': [True, False],
     },
     'temporal_gnn': {
         'learning_rate': [0.0008, 0.001, 0.0012, 0.0015],
-        'weight_decay': [0.0005, 0.001, 0.005],
-        'dropout': [0.4, 0.5, 0.6],
-        'hidden_dim': [64, 128, 192],
-        'num_gnn_layers': [2, 3, 4],
-        'gnn_type': ['gcn', 'gat', 'gin'],
+        'weight_decay': [0.0005, 0.001, 0.005, 0.01],
+        'dropout': [0.4, 0.5],
+        'hidden_dim': [96, 128, 160],
+        'num_gnn_layers': [2, 3],
+        'gnn_type': ['gcn', 'gat'],
         'pooling': ['mean', 'max', 'attention'],
         'enable_basal_pattern': [True, False],
         'enable_sudden_death': [True, False],
-    }
+    },
 }
 
 HGB_MODEL_PARAMS = {'max_depth', 'min_samples_leaf', 'max_iter', 'class_weight'}
@@ -64,7 +65,7 @@ def _apply_param_to_config(config, key, value):
     elif key == 'dropout':
         config['model']['params'][key] = float(value)
 
-    elif key == 'correlation_threshold':
+    elif key in ['correlation_threshold', 'anatomic_weight']:
         config['data'][key] = float(value)
 
     elif key in HGB_MODEL_PARAMS:
