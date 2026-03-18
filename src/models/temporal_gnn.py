@@ -16,18 +16,9 @@ class TemporalGNN(BaseECGModel):
         pooling = self.params_cfg.get('pooling', 'mean')
         gnn_kwargs = self.params_cfg.get('gnn_kwargs', {})
         
-        if gnn_type == "gcn":
-            GNN = GCNConv
-        elif gnn_type == "gat":
-            GNN = GATConv
-        elif gnn_type == "gin":
-            GNN = GINConv
-        else:
-            raise ValueError(f"Unknown GNN type: {gnn_type}")
-        
         self.gnns = nn.ModuleList([
-            GNN(1, hidden_dim),
-            *[GNN(hidden_dim, hidden_dim, **gnn_kwargs) for _ in range(num_gnn_layers - 1)],
+            self._build_gnn_layer(gnn_type, 1, hidden_dim, **gnn_kwargs),
+            *[self._build_gnn_layer(gnn_type, hidden_dim, hidden_dim, **gnn_kwargs) for _ in range(num_gnn_layers - 1)],
         ])
         
         self.pooling = pooling
@@ -40,6 +31,21 @@ class TemporalGNN(BaseECGModel):
             task: nn.Linear(hidden_dim * 12, 1)
             for task in self.tasks
         })
+
+    def _build_gnn_layer(self, gnn_type, input_dim, output_dim, **kwargs):
+        if gnn_type == "gcn":
+            return GCNConv(input_dim, output_dim, **kwargs)
+        elif gnn_type == "gat":
+            return GATConv(input_dim, output_dim, **kwargs)
+        elif gnn_type == "gin":
+            return GINConv(nn=nn.Sequential(
+                nn.Linear(input_dim, output_dim),
+                nn.BatchNorm1d(output_dim),
+                nn.SiLU(),
+                nn.Linear(output_dim, output_dim),
+            ), **kwargs)
+        else:
+            raise ValueError(f"Unknown GNN type: {gnn_type}")
     
     def forward(self, x):
         all_embeddings = self.get_embeddings(x)
