@@ -29,10 +29,6 @@ experiment_name: resnet_baseline
 model:
   params:
     dropout: 0.6
-    resnet_channels:
-    - 32
-    - 64
-    - 128
     kernel_size: 7
     resnet_channels:
     - 48
