@@ -1,17 +1,21 @@
 import torch
 from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.multioutput import MultiOutputClassifier
 from src.models.base import BaseECGModel
 
 class HistBoostBaseline(BaseECGModel):
     def __init__(self, config):
         super().__init__(config)
 
-        self.model = HistGradientBoostingClassifier(
-            max_iter=self.params_cfg.get('max_iter', 100),
-            min_samples_leaf=self.params_cfg.get('min_samples_leaf', 20),
-            max_depth=self.params_cfg.get('max_depth', None),
-            class_weight=self.params_cfg.get('class_weight', 'balanced'),
-            random_state=config.get('seed', 42),
+        self.model = MultiOutputClassifier(
+            estimator=HistGradientBoostingClassifier(
+                max_iter=self.params_cfg.get('max_iter', 100),
+                min_samples_leaf=self.params_cfg.get('min_samples_leaf', 20),
+                max_depth=self.params_cfg.get('max_depth', None),
+                class_weight=self.params_cfg.get('class_weight', 'balanced'),
+                random_state=config.get('seed', 42),
+            ),
+            n_jobs=config.get('num_workers', -1)
         )
         
     def forward(self, x, **kwargs):
@@ -20,12 +24,15 @@ class HistBoostBaseline(BaseECGModel):
     
     @property
     def num_parameters(self):
-        if not hasattr(self.model, '_predictors'):
-            return 0
-            
-        return sum(
-            [tree.nodes for iteration in self.model._predictors for tree in iteration]
-        )
+        try:
+            return sum(
+                tree.nodes.shape[0]
+                for estimator in self.model.estimators_
+                for iteration in estimator._predictors
+                for tree in iteration
+            )
+        except Exception:
+            return self.params_cfg.get('max_iter', 100)
     
     def extract_features(self, x):
         batch_size, num_leads, signal_len = x.shape
@@ -127,3 +134,4 @@ class HistBoostBaseline(BaseECGModel):
         ], dim=1)
 
         return features.numpy()
+    
