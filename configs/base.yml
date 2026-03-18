@@ -22,8 +22,8 @@ data:
 
   batch_size: 16
   normalize: "zscore_per_lead"  # Options: zscore_per_lead, zscore_global, minmax
-  correlation_threshold: 0.3
-  anatomic_weight: 0.3
+  correlation_threshold: 0.8
+  anatomic_weight: 0.75
 
 # Model architecture
 model:
