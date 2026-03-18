@@ -265,7 +265,16 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
     best_config = load_config(base_config_path)
 
     for param_name in search_space.keys():
-        if param_name in best_row and not pd.isna(best_row[param_name]):
+        val = best_row.get(param_name)
+        is_missing = False
+        if val is None:
+            is_missing = True
+        elif not isinstance(val, (list, tuple, np.ndarray)):
+            try:
+                is_missing = pd.isna(val)
+            except (TypeError, ValueError):
+                is_missing = False
+        if param_name in best_row and not is_missing:
             value = _safe_parse_value(param_name, best_row[param_name])
             _apply_param_to_config(best_config, param_name, value)
 
