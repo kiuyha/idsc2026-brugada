@@ -35,15 +35,15 @@ model:
     - 64
     - 128
     kernel_size: 7
-    max_depth: 5
-    min_samples_split: 4
-    n_estimators: 100
+    max_depth: 3
+    max_iter: 100
+    min_samples_leaf: 20
   type: hgb_baseline
 num_workers: -1
 seed: 42
 tasks:
   basal_pattern:
-    enabled: false
+    enabled: true
     weight: 0.3
   brugada:
     enabled: true

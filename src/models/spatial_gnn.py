@@ -15,26 +15,28 @@ class SpatialGNN(BaseECGModel):
         hidden_dim = self.params_cfg.get('hidden_dim', 64)
         num_gnn_layers = self.params_cfg.get('num_gnn_layers', 3)
         gnn_type = self.params_cfg.get('gnn_type', "gcn")
+        ggn_kwargs = self.params_cfg.get('ggn_kwargs', {'add_self_loops': False})
 
         self.lead_encoder = nn.ModuleList([
             ResNetBlock(1, channels[0], kernel_size),
             *[ResNetBlock(channels[i], channels[i+1], kernel_size) for i in range(len(channels) - 1)],
         ])
         self.temporal_pool = nn.AdaptiveAvgPool1d(1)
-
+        
         if gnn_type == "gcn":
             GNN = GCNConv
         elif gnn_type == "gat":
             GNN = GATConv
         elif gnn_type == "gin":
             GNN = GINConv
+            if 'add_self_loops' in ggn_kwargs: del ggn_kwargs['add_self_loops']
         else:
             raise ValueError(f"Unknown GNN type: {gnn_type}")
         
         # Disable self_loops since preprocessing already handles this
         self.gnns = nn.ModuleList([
-            GNN(channels[-1], hidden_dim, add_self_loops=False),
-            *[GNN(hidden_dim, hidden_dim, add_self_loops=False) for _ in range(num_gnn_layers - 1)],
+            GNN(channels[-1], hidden_dim, **ggn_kwargs),
+            *[GNN(hidden_dim, hidden_dim, **ggn_kwargs) for _ in range(num_gnn_layers - 1)],
         ])
         
         self.dropout = nn.Dropout(dropout)
