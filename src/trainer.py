@@ -203,7 +203,8 @@ class Trainer:
     def testing(self):
         print("\n" + "="*60)
         print("Evaluating on test set...")
-        
+
+        self.load_checkpoint()
         test_metrics = self.validate(self.test_loader)
         
         print(f"\nTest Metrics:")
@@ -214,6 +215,13 @@ class Trainer:
                 print(f"    {metric.capitalize()}: {value:.4f}")
 
         return test_metrics
+    
+    def load_checkpoint(self):
+        path = os.path.join(self.train_cfg['checkpoint_dir'], self.train_cfg['checkpoint_name'])
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Checkpoint not found at {path}")
+        print(f"Loading best model weights from: {path}")
+        self.model.load_state_dict(torch.load(path, map_location=self.device))
     
     def save_checkpoint(self):
         path = os.path.join(self.train_cfg['checkpoint_dir'], self.train_cfg['checkpoint_name'])

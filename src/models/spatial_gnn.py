@@ -17,18 +17,26 @@ class SpatialGNN(BaseECGModel):
         gnn_type = self.params_cfg.get('gnn_type', "gcn")
         ggn_kwargs = self.params_cfg.get('ggn_kwargs', {})
 
-        self.lead_encoder = nn.ModuleList([
-            ResNetBlock(1, channels[0], kernel_size),
-            *[ResNetBlock(channels[i], channels[i+1], kernel_size) for i in range(len(channels) - 1)],
+        self.limb_encoder = nn.ModuleList([
+            ResNetBlock(1, channels[0], kernel_size, stride=1),
+            *[ResNetBlock(channels[i], channels[i+1], kernel_size, stride=2) for i in range(len(channels) - 1)],
+        ])
+        
+        self.precordial_encoder = nn.ModuleList([
+            ResNetBlock(1, channels[0], kernel_size, stride=1),
+            *[ResNetBlock(channels[i], channels[i+1], kernel_size, stride=2) for i in range(len(channels) - 1)],
         ])
         self.temporal_pool = nn.AdaptiveAvgPool1d(1)
         
-        # Disable self_loops since preprocessing already handles this
         self.gnns = nn.ModuleList([
             self._build_gnn_layer(gnn_type, channels[-1], hidden_dim, **ggn_kwargs),
             *[self._build_gnn_layer(gnn_type, hidden_dim, hidden_dim, **ggn_kwargs) for _ in range(num_gnn_layers - 1)],
         ])
-        
+        self.gnn_norms = nn.ModuleList([
+            nn.BatchNorm1d(hidden_dim),
+            *[nn.BatchNorm1d(hidden_dim) for _ in range(num_gnn_layers - 1)],
+        ])
+
         self.dropout = nn.Dropout(dropout)
         self.task_heads = nn.ModuleDict({
             task : nn.Sequential(
@@ -39,9 +47,9 @@ class SpatialGNN(BaseECGModel):
 
     def _build_gnn_layer(self, gnn_type, input_dim, output_dim, **kwargs):
         if gnn_type == "gcn":
-            return GCNConv(input_dim, output_dim, **kwargs)
+            return GCNConv(input_dim, output_dim, add_self_loops=True, **kwargs)
         elif gnn_type == "gat":
-            return GATConv(input_dim, output_dim, **kwargs)
+            return GATConv(input_dim, output_dim, add_self_loops=True, **kwargs)
         elif gnn_type == "gin":
             return GINConv(nn=nn.Sequential(
                 nn.Linear(input_dim, output_dim),
@@ -68,11 +76,13 @@ class SpatialGNN(BaseECGModel):
         
         # Extract temporal features using ResNet
         lead_features = []
-        for lead_idx in range(self.num_leads):
+        for lead_idx in range(12):
             lead_signal = x[:, lead_idx:lead_idx+1, :]
-            
             feat = lead_signal
-            for block in self.lead_encoder:
+            
+            # Leads 0-5 are limbs, 6-11 are precordial
+            encoder = self.limb_encoder if lead_idx < 6 else self.precordial_encoder
+            for block in encoder:
                 feat = block(feat)
             
             feat = self.temporal_pool(feat).squeeze(-1)
@@ -91,6 +101,8 @@ class SpatialGNN(BaseECGModel):
                 h = gnn(h, edge_index, edge_weight)
             else:
                 h = gnn(h, edge_index)
+
+            h = self.gnn_norms[i](h)
                 
             # Activation (except last layer)
             if i < len(self.gnns) - 1:

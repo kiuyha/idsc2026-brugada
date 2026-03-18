@@ -62,9 +62,6 @@ def build_anatomical_adjacency():
         adj[i, j] = 1.0
         adj[j, i] = 1.0
     
-    # Add self-loops
-    np.fill_diagonal(adj, 1.0)
-    
     return adj
 
 def build_visibility_graph(signal, device=None):

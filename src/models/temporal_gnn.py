@@ -20,6 +20,10 @@ class TemporalGNN(BaseECGModel):
             self._build_gnn_layer(gnn_type, 1, hidden_dim, **gnn_kwargs),
             *[self._build_gnn_layer(gnn_type, hidden_dim, hidden_dim, **gnn_kwargs) for _ in range(num_gnn_layers - 1)],
         ])
+        self.gnn_norms = nn.ModuleList([
+            nn.BatchNorm1d(hidden_dim),
+            *[nn.BatchNorm1d(hidden_dim) for _ in range(num_gnn_layers - 1)],
+        ])
         
         self.pooling = pooling
         if pooling == 'attention':
@@ -34,9 +38,9 @@ class TemporalGNN(BaseECGModel):
 
     def _build_gnn_layer(self, gnn_type, input_dim, output_dim, **kwargs):
         if gnn_type == "gcn":
-            return GCNConv(input_dim, output_dim, **kwargs)
+            return GCNConv(input_dim, output_dim, add_self_loops=True, **kwargs)
         elif gnn_type == "gat":
-            return GATConv(input_dim, output_dim, **kwargs)
+            return GATConv(input_dim, output_dim, add_self_loops=True, **kwargs)
         elif gnn_type == "gin":
             return GINConv(nn=nn.Sequential(
                 nn.Linear(input_dim, output_dim),
@@ -82,6 +86,8 @@ class TemporalGNN(BaseECGModel):
                         h = gnn(h, edge_index, edge_weight)
                     else:
                         h = gnn(h, edge_index)
+
+                    h = self.gnn_norms[i](h)
                         
                     if i < len(self.gnns) - 1:
                         h = F.silu(h)

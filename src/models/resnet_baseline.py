@@ -3,25 +3,24 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class ResNetBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=7):
+    def __init__(self, in_channels, out_channels, kernel_size=7, stride=1):
         super().__init__()
-        self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size, padding=kernel_size//2)
-        self.bn1 = nn.BatchNorm1d(out_channels)
-        self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size, padding=kernel_size//2)
-        self.bn2 = nn.BatchNorm1d(out_channels)
-        self.skip = nn.Conv1d(in_channels, out_channels, 1) if in_channels != out_channels else nn.Identity()
+
+        self.main_path = nn.Sequential(
+            nn.Conv1d(in_channels, out_channels, kernel_size, stride=stride, padding=kernel_size//2),
+            nn.BatchNorm1d(out_channels),
+            nn.SiLU(),
+            nn.Conv1d(out_channels, out_channels, kernel_size, padding=kernel_size//2),
+            nn.BatchNorm1d(out_channels),
+        )
+
+        if in_channels != out_channels or stride != 1:
+            self.skip = nn.Conv1d(in_channels, out_channels, 1, stride=stride)
+        else:
+            self.skip = nn.Identity()
         
     def forward(self, x):
-        identity = self.skip(x)
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = F.silu(out)
-        
-        out = self.conv2(out)
-        out = self.bn2(out)
-        
-        return F.silu(out + identity)
+        return F.silu(self.main_path(x) + self.skip(x))
     
 class ResNetBaseline(BaseECGModel):
     def __init__(self, config):
@@ -33,7 +32,7 @@ class ResNetBaseline(BaseECGModel):
 
         self.blocks = nn.ModuleList([
             ResNetBlock(12, channels[0], kernel_size),
-            *[ResNetBlock(channels[i], channels[i+1], kernel_size) for i in range(len(channels) - 1)],
+            *[ResNetBlock(channels[i], channels[i+1], kernel_size, stride=2) for i in range(len(channels) - 1)],
         ])
 
         self.pool = nn.AdaptiveAvgPool1d(1)
@@ -47,15 +46,16 @@ class ResNetBaseline(BaseECGModel):
         })
 
     def forward(self, x, **kwargs):
-        for block in self.blocks:
-            x = block(x)
+        x = self.get_embeddings(x)
 
-        x = self.pool(x).squeeze(-1)
-        x = self.dropout(x)
         return {
             task: head(x)
             for task, head in self.task_heads.items()
         }
     
     def get_embeddings(self, x, **kwargs):
-        pass
+        for block in self.blocks:
+            x = block(x)
+
+        x = self.pool(x).squeeze(-1)
+        return self.dropout(x)
