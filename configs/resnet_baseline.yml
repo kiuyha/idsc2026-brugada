@@ -5,7 +5,7 @@ experiment_name: "resnet_baseline"
 model:
   type: "resnet_baseline"
   params:
-    resnet_channels: [32, 64, 128]
+    resnet_channels: [48, 96, 192]
     kernel_size: 7
     dropout: 0.4
 

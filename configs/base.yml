@@ -24,14 +24,13 @@ data:
   normalize: "zscore_per_lead"  # Options: zscore_per_lead, zscore_global, minmax
   correlation_threshold: 0.3
   anatomic_weight: 0.3
-  self_loops: true
 
 # Model architecture
 model:
   type: "resnet_baseline"  # Options: resnet_baseline, spatial_gnn, temporal_gnn
   params:
     dropout: 0.4
-    hidden_channels: [32, 64, 128]
+    hidden_channels: [48, 96, 192]
     kernel_size: 7
 
 # Multi-task setup
