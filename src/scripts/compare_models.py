@@ -8,7 +8,6 @@ CONFIGS = [
     'configs/best/hgb_baseline.yml',
     'configs/best/resnet_baseline.yml',
     'configs/best/spatial_gnn.yml',
-    'configs/best/temporal_gnn.yml',
 ]
 
 TEST_SEEDS = [42, 43, 44, 45, 46] 

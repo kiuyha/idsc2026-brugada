@@ -7,7 +7,7 @@ class BaseECGModel(ABC, nn.Module):
         self.config = config
         self.params_cfg = config['model'].get('params', {})
         self.tasks = [t for t, params in config['tasks'].items() if params['enabled']]
-        self.num_leads = 12
+        self.num_leads = config['data']['leads']
 
     @abstractmethod
     def forward(self, x, **kwargs):

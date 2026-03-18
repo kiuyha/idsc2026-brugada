@@ -3,7 +3,7 @@ from .resnet_baseline import ResNetBlock
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv, GATConv, GINConv
+from torch_geometric.nn import GCNConv, GATConv, GINConv, GraphNorm
 
 class SpatialGNN(BaseECGModel):
     def __init__(self, config):
@@ -28,14 +28,11 @@ class SpatialGNN(BaseECGModel):
             self._build_gnn_layer(gnn_type, channels[-1], hidden_dim, **ggn_kwargs),
             *[self._build_gnn_layer(gnn_type, hidden_dim, hidden_dim, **ggn_kwargs) for _ in range(num_gnn_layers - 1)],
         ])
-        self.gnn_norms = nn.ModuleList([
-            nn.BatchNorm1d(hidden_dim) for _ in range(num_gnn_layers)
-        ])
 
         self.dropout = nn.Dropout(dropout)
         self.task_heads = nn.ModuleDict({
             task : nn.Sequential(
-                nn.Linear(hidden_dim * 12, 1),
+                nn.Linear(hidden_dim * self.num_leads, 1),
             )
             for task in self.tasks
         })
@@ -70,7 +67,7 @@ class SpatialGNN(BaseECGModel):
         
         # Extract temporal features using ResNet
         lead_features = []
-        for lead_idx in range(12):
+        for lead_idx in range(self.num_leads):
             lead_signal = x[:, lead_idx:lead_idx+1, :]
             feat = lead_signal
             
@@ -97,8 +94,6 @@ class SpatialGNN(BaseECGModel):
             else:
                 h = gnn(h, edge_index)
 
-            h = self.gnn_norms[i](h)
-                
             # Activation (except last layer)
             if i < len(self.gnns) - 1:
                 h = F.silu(h)

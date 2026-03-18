@@ -31,7 +31,7 @@ class ResNetBaseline(BaseECGModel):
         dropout = self.params_cfg.get('dropout', 0.3)
 
         self.blocks = nn.ModuleList([
-            ResNetBlock(12, channels[0], kernel_size),
+            ResNetBlock(self.num_leads, channels[0], kernel_size),
             *[ResNetBlock(channels[i], channels[i+1], kernel_size, stride=2) for i in range(len(channels) - 1)],
         ])
 

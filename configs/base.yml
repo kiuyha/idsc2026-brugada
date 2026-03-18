@@ -27,7 +27,7 @@ data:
 
 # Model architecture
 model:
-  type: "resnet_baseline"  # Options: resnet_baseline, spatial_gnn, temporal_gnn
+  type: "resnet_baseline"  # Options: resnet_baseline, spatial_gnn
   params:
     dropout: 0.4
     resnet_channels: [48, 96, 192]

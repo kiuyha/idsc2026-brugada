@@ -26,6 +26,7 @@ class Trainer:
         self.patience = self.train_cfg.get('early_stopping_patience', 15)
         self.primary_metric = eval_cfg.get('primary_metric', 'f2')
         self.metrics_list = eval_cfg.get('metrics_list', ['f2', 'acc'])
+        self.warmup_epochs = self.train_cfg.get('warmup_epochs', 0)
         
         self.device = get_device(config)
         self.model.to(self.device)
@@ -36,12 +37,12 @@ class Trainer:
             weight_decay=self.weight_decay
         )
 
-        if self.train_cfg.get('warmup_epochs'):
-            self.warmup = LinearLR(self.optimizer, start_factor=0.1, total_iters=self.train_cfg['warmup_epochs'])
+        if self.warmup_epochs > 0:
+            self.warmup = LinearLR(self.optimizer, start_factor=0.1, total_iters=self.warmup_epochs)
             self.scheduler = SequentialLR(
                 self.optimizer,
                 schedulers=[self.warmup, self._build_scheduler()],
-                milestones=[self.train_cfg['warmup_epochs']]
+                milestones=[self.warmup_epochs]
             )
         else:
             self.scheduler = self._build_scheduler() 
@@ -233,7 +234,7 @@ class Trainer:
         if scheduler_type == 'cosine':
             return CosineAnnealingLR(
                 self.optimizer,
-                T_max=self.epochs,
+                T_max=self.epochs - self.warmup_epochs,
                 eta_min=self.train_cfg.get('min_lr', 1e-6)
             )
         elif scheduler_type == 'step':

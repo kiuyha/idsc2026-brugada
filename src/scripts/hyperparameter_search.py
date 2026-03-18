@@ -41,17 +41,6 @@ SEARCH_SPACES = {
         'enable_basal_pattern': [True, False],
         'enable_sudden_death': [True, False],
     },
-    'temporal_gnn': {
-        'learning_rate': [0.0008, 0.001, 0.0012, 0.0015],
-        'weight_decay': [0.0005, 0.001, 0.005, 0.01],
-        'dropout': [0.4, 0.5],
-        'hidden_dim': [96, 128, 160],
-        'num_gnn_layers': [2, 3],
-        'gnn_type': ['gcn', 'gat'],
-        'pooling': ['mean', 'max', 'attention'],
-        'enable_basal_pattern': [True, False],
-        'enable_sudden_death': [True, False],
-    },
 }
 
 HGB_MODEL_PARAMS = {'max_depth', 'min_samples_leaf', 'max_iter', 'class_weight'}
@@ -71,8 +60,7 @@ def _apply_param_to_config(config, key, value):
     elif key in HGB_MODEL_PARAMS:
         config['model']['params'][key] = value
 
-    elif key in ['resnet_channels', 'hidden_dim', 'num_gnn_layers',
-                 'pooling', 'gnn_type']:
+    elif key in ['resnet_channels', 'hidden_dim', 'num_gnn_layers', 'gnn_type']:
         config['model']['params'][key] = value
 
     elif key == 'enable_basal_pattern':
