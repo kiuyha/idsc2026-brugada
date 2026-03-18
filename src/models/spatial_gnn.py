@@ -17,15 +17,11 @@ class SpatialGNN(BaseECGModel):
         gnn_type = self.params_cfg.get('gnn_type', "gcn")
         ggn_kwargs = self.params_cfg.get('ggn_kwargs', {})
 
-        self.limb_encoder = nn.ModuleList([
+        self.temporal_encoder = nn.ModuleList([
             ResNetBlock(1, channels[0], kernel_size, stride=1),
             *[ResNetBlock(channels[i], channels[i+1], kernel_size, stride=2) for i in range(len(channels) - 1)],
         ])
         
-        self.precordial_encoder = nn.ModuleList([
-            ResNetBlock(1, channels[0], kernel_size, stride=1),
-            *[ResNetBlock(channels[i], channels[i+1], kernel_size, stride=2) for i in range(len(channels) - 1)],
-        ])
         self.temporal_pool = nn.AdaptiveAvgPool1d(1)
         
         self.gnns = nn.ModuleList([
@@ -33,8 +29,7 @@ class SpatialGNN(BaseECGModel):
             *[self._build_gnn_layer(gnn_type, hidden_dim, hidden_dim, **ggn_kwargs) for _ in range(num_gnn_layers - 1)],
         ])
         self.gnn_norms = nn.ModuleList([
-            nn.BatchNorm1d(hidden_dim),
-            *[nn.BatchNorm1d(hidden_dim) for _ in range(num_gnn_layers - 1)],
+            nn.BatchNorm1d(hidden_dim) for _ in range(num_gnn_layers)
         ])
 
         self.dropout = nn.Dropout(dropout)
@@ -80,7 +75,7 @@ class SpatialGNN(BaseECGModel):
             feat = lead_signal
             
             # Leads 0-5 are limbs, 6-11 are precordial
-            encoder = self.limb_encoder if lead_idx < 6 else self.precordial_encoder
+            encoder = self.temporal_encoder
             for block in encoder:
                 feat = block(feat)
             

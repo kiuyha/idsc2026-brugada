@@ -1,17 +1,16 @@
 data:
-  anatomic_weight: 0.3
+  anatomic_weight: 0.75
   augmentation:
     amplitude_scale: 0.1
     enabled: false
     noise_std: 0.01
     time_shift: 0.1
   batch_size: 16
-  correlation_threshold: 0.3
+  correlation_threshold: 0.8
   duration: 10
   leads: 12
   normalize: zscore_per_lead
   path: experiments/physionet.org/files/brugada-huca/1.0.0
-  self_loops: true
   test_split: 0.15
   train_split: 0.7
   val_split: 0.15
@@ -28,12 +27,13 @@ evaluation:
 experiment_name: resnet_baseline
 model:
   params:
-    dropout: 0.6
+    dropout: 0.4
     kernel_size: 7
     resnet_channels:
-    - 48
-    - 96
-    - 192
+    - 32
+    - 64
+    - 128
+    - 256
   type: resnet_baseline
 num_workers: -1
 seed: 42

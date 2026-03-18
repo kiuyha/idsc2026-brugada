@@ -21,8 +21,7 @@ class TemporalGNN(BaseECGModel):
             *[self._build_gnn_layer(gnn_type, hidden_dim, hidden_dim, **gnn_kwargs) for _ in range(num_gnn_layers - 1)],
         ])
         self.gnn_norms = nn.ModuleList([
-            nn.BatchNorm1d(hidden_dim),
-            *[nn.BatchNorm1d(hidden_dim) for _ in range(num_gnn_layers - 1)],
+            nn.BatchNorm1d(hidden_dim) for _ in range(num_gnn_layers)
         ])
         
         self.pooling = pooling
