@@ -13,9 +13,9 @@ F2 score weights recall twice as heavily as precision, reflecting the clinical c
 
 | Model | Accuracy | Precision | Recall | F1 | AUC | F2 |
 |---|---|---|---|---|---|---|
-| Spatial GNN | 0.7418 +/- 0.0694 | 0.4654 +/- 0.0816 | **0.8333 +/- 0.1394** | 0.5883 +/- 0.0719 | **0.8519 +/- 0.0631** | **0.7099 +/- 0.0899** |
-| ResNet | **0.8036 +/- 0.0624** | **0.5600 +/- 0.1255** | 0.7333 +/- 0.1333 | **0.6235 +/- 0.0967** | 0.8384 +/- 0.0487 | 0.6814 +/- 0.1058 |
-| HGB | **0.8036 +/- 0.0602** | 0.5655 +/- 0.1176 | 0.5868 +/- 0.2851 | 0.5382 +/- 0.1747 | 0.8192 +/- 0.1179 | 0.5586 +/- 0.2343 |
+| Spatial GNN | 0.7418 ± 0.0694 | 0.4654 ± 0.0816 | **0.8333 ± 0.1394** | 0.5883 ± 0.0719 | **0.8519 ± 0.0631** | **0.7099 ± 0.0899** |
+| ResNet | **0.8036 ± 0.0624** | **0.5600 ± 0.1255** | 0.7333 ± 0.1333 | **0.6235 ± 0.0967** | 0.8384 ± 0.0487 | 0.6814 ± 0.1058 |
+| HGB | **0.8036 ± 0.0602** | 0.5655 ± 0.1176 | 0.5868 ± 0.2851 | 0.5382 ± 0.1747 | 0.8192 ± 0.1179 | 0.5586 ± 0.2343 |
 
 The Spatial GNN leads on F2 (0.7099 vs 0.6814) and AUC (0.8519 vs 0.8384), with the gap now statistically meaningful after correcting an error in the anatomical adjacency construction. The original implementation at commit [9e5364](https://github.com/kiuyha/idsc2026-brugada/commit/9e5364750365a919ba94b815e96acdfdd187763f) included three unjustified connections between augmented limb leads (aVR-aVL, aVR-aVF, aVL-aVF) that have no shared physical electrode and therefore no clinical basis in Einthoven's triangle. Removing these and adding the missing clinically justified connections produced a 0.0235 F2 improvement and reduced standard deviation from 0.1231 to 0.0899, indicating more stable generalization across data splits.
 
