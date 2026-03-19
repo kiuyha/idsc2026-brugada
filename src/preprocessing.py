@@ -41,11 +41,15 @@ def build_anatomical_adjacency():
     
     # Limb lead connections (Einthoven's triangle)
     limb_connections = [
-        (0, 1), (0, 4),  # I connects to II and aVL
-        (1, 2), (1, 5),  # II connects to III and aVF
-        (2, 5),          # III connects to aVF
-        (3, 4), (3, 5),  # aVR connects to aVL and aVF
-        (4, 5)           # aVL connects to aVF
+        (0, 1),  # I - II    (share RA electrode)
+        (0, 3),  # I - aVR   (share RA electrode)
+        (1, 3),  # II - aVR  (share RA electrode)
+        (0, 2),  # I - III   (share LA electrode
+        (0, 4),  # I - aVL   (share LA electrode)
+        (2, 4),  # III - aVL (share LA electrode)
+        (1, 2),  # II - III  (share LL electrode)
+        (1, 5),  # II - aVF  (share LL electrode)
+        (2, 5),  # III - aVF (share LL electrode)
     ]
     
     # Precordial connections (sequential across chest)

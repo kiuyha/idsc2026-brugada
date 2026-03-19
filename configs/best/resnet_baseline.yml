@@ -27,13 +27,12 @@ evaluation:
 experiment_name: resnet_baseline
 model:
   params:
-    dropout: 0.4
+    dropout: 0.6
     kernel_size: 7
     resnet_channels:
-    - 32
-    - 64
-    - 128
-    - 256
+    - 48
+    - 96
+    - 192
   type: resnet_baseline
 num_workers: -1
 seed: 42

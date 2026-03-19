@@ -49,7 +49,7 @@ def main():
     print("Starting Model Comparison")
     print(f"Will run {len(CONFIGS)} models across {len(TEST_SEEDS)} seeds each.\n")
     
-    base_config = load_config(CONFIGS[0])
+    base_config = load_config('configs/base.yml')
     primary_task = list(base_config['tasks'].keys())[0]
     
     metrics_to_track = ['accuracy', 'precision', 'recall', 'f1', 'auc', 'f2']
@@ -85,7 +85,8 @@ def main():
                 agg_result[f"{col}_display"] = f"{mean_val:.4f} ± {std_val:.4f}"
         
         all_results.append(agg_result)
-        
+    
+    print(f"all_results: {all_results}")
     if all_results:
         comparison_df = pd.DataFrame(all_results)
         
