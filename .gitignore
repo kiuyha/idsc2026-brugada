@@ -209,6 +209,7 @@ __marimo__/
 experiments/*
 !experiments/.gitkeep
 !experiments/hyperparam_search*
+!experiments/*_eval_seed_*
 !experiments/model_comparison.csv
 test*
 configs/variants

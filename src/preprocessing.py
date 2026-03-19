@@ -44,7 +44,7 @@ def build_anatomical_adjacency():
         (0, 1),  # I - II    (share RA electrode)
         (0, 3),  # I - aVR   (share RA electrode)
         (1, 3),  # II - aVR  (share RA electrode)
-        (0, 2),  # I - III   (share LA electrode
+        (0, 2),  # I - III   (share LA electrode)
         (0, 4),  # I - aVL   (share LA electrode)
         (2, 4),  # III - aVL (share LA electrode)
         (1, 2),  # II - III  (share LL electrode)

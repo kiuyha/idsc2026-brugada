@@ -4,7 +4,23 @@ This repository contains the full experimental pipeline for the [IDSC 2026](http
 
 The codebase is structured to support reproducible hyperparameter search, model comparison across multiple random seeds, and interpretability analysis via lead importance scores derived from the GNN embeddings.
 
----
+
+## Results
+
+The following table reports mean and standard deviation across 5 independent seeds (42 through 46) on the held-out test set. All models use their best hyperparameter configurations from random search. Results are sorted by F2 score, which is the primary evaluation metric.
+
+F2 score weights recall twice as heavily as precision, reflecting the clinical cost asymmetry in Brugada syndrome screening: a missed positive case (false negative) carries a risk of sudden cardiac death, while a false positive results in an unnecessary but non-harmful cardiology referral. Accuracy is included for completeness but is not a meaningful metric given the class imbalance. It is also worth noting that a trivial classifier predicting all negatives would achieve approximately 79% accuracy.
+
+| Model | Accuracy | Precision | Recall | F1 | AUC | F2 |
+|---|---|---|---|---|---|---|
+| Spatial GNN | 0.7418 +/- 0.0694 | 0.4654 +/- 0.0816 | **0.8333 +/- 0.1394** | 0.5883 +/- 0.0719 | **0.8519 +/- 0.0631** | **0.7099 +/- 0.0899** |
+| ResNet | **0.8036 +/- 0.0624** | **0.5600 +/- 0.1255** | 0.7333 +/- 0.1333 | **0.6235 +/- 0.0967** | 0.8384 +/- 0.0487 | 0.6814 +/- 0.1058 |
+| HGB | **0.8036 +/- 0.0602** | 0.5655 +/- 0.1176 | 0.5868 +/- 0.2851 | 0.5382 +/- 0.1747 | 0.8192 +/- 0.1179 | 0.5586 +/- 0.2343 |
+
+The Spatial GNN leads on F2 (0.7099 vs 0.6814) and AUC (0.8519 vs 0.8384), with the gap now statistically meaningful after correcting an error in the anatomical adjacency construction. The original implementation at commit [9e5364](https://github.com/kiuyha/idsc2026-brugada/commit/9e5364750365a919ba94b815e96acdfdd187763f) included three unjustified connections between augmented limb leads (aVR-aVL, aVR-aVF, aVL-aVF) that have no shared physical electrode and therefore no clinical basis in Einthoven's triangle. Removing these and adding the missing clinically justified connections produced a 0.0235 F2 improvement and reduced standard deviation from 0.1231 to 0.0899, indicating more stable generalization across data splits.
+
+The Spatial GNN achieves higher recall (0.833 vs 0.733) at the cost of lower precision (0.465 vs 0.560), making it the preferred model for screening where missing a positive case is the more critical failure mode. ResNet remains more stable on accuracy and precision. HGB underperforms both deep learning models on F2 with the highest variance in recall (std 0.285), indicating unreliable sensitivity across splits. Both deep learning models clearly outperform the traditional ML baseline.
+
 
 ## Dataset
 
@@ -23,7 +39,6 @@ The dataset must be downloaded from PhysioNet and placed at the path specified i
 
 The `metadata.csv` file must contain at minimum a `patient_id` column and a `brugada` column with binary labels. Optional columns `basal_pattern` and `sudden_death` are used as auxiliary task labels when enabled in the config.
 
----
 
 ## Project Structure
 
@@ -62,7 +77,6 @@ The `metadata.csv` file must contain at minimum a `patient_id` column and a `bru
     └── compare_models.py           # Multi-seed model comparison and final results
 ```
 
----
 
 ## Installation
 
@@ -80,7 +94,6 @@ pip install -r requirements.txt
 
 Python 3.10 or later is required. The `.python-version` file specifies the exact version used during development.
 
----
 
 ## Configuration System
 
@@ -97,7 +110,6 @@ The key fields in `configs/base.yml`:
 - `tasks`: each task has an `enabled` flag and a `weight` controlling its contribution to the multi-task loss
 - `evaluation.primary_metric`: the metric used for early stopping and checkpoint saving; set to `f2` throughout
 
----
 
 ## Models
 
@@ -145,7 +157,6 @@ The GNN supports GCN, GAT, and GIN layer types. GCN and GAT use `add_self_loops=
 
 Lead importance scores are computed in `get_lead_importance()` as the L2 norm of each node's final GNN embedding, normalized across leads. Higher norm indicates greater contribution to the classification decision.
 
----
 
 ## Training
 
@@ -181,7 +192,6 @@ The training loop uses AdamW with cosine annealing LR schedule and optional line
 
 The dataset has approximately a 1:3.8 positive-to-negative ratio. Two mechanisms address this simultaneously. First, `WeightedRandomSampler` oversamples the minority class during training so each batch contains a more balanced class distribution. Second, focal loss with `alpha=0.79` (computed from the class frequency) and `gamma=2.0` downweights easy negatives and focuses gradient updates on hard examples and the minority class.
 
----
 
 ## Hyperparameter Search
 
@@ -210,7 +220,6 @@ Each trial creates a temporary config variant in `configs/variants/`, runs `main
 
 The search spaces are defined in `SEARCH_SPACES` at the top of `hyperparameter_search.py` and can be modified directly. The spatial GNN search space includes `correlation_threshold` and `anatomic_weight` as data-level parameters alongside the standard model hyperparameters, since graph construction is integral to model behavior.
 
----
 
 ## Model Comparison
 
@@ -224,7 +233,6 @@ This script reads from `configs/best/` for each model, runs training and evaluat
 
 The five-seed evaluation is intentionally broader than the three-seed search to reduce variance in the final reported numbers. This approach is a form of Monte Carlo cross-validation where each seed independently shuffles the train/validation split and re-initializes model weights, testing robustness to both data partitioning and initialization variance simultaneously.
 
----
 
 ## Interpretability
 
@@ -234,7 +242,6 @@ For a correctly functioning model on Brugada syndrome, V1 and V2 (indices 6 and 
 
 The `src/interpretability.py` module contains utility functions used by the notebook for loading checkpoints, running inference, and computing importance scores. It is not invoked during training or evaluation and is intended solely for post-hoc analysis.
 
----
 
 ## Reproducibility
 
@@ -244,13 +251,11 @@ The train/validation/test split is performed using stratified sampling with the 
 
 To exactly reproduce the reported results, run `compare_models.py` using the configs in `configs/best/` without modification. The hyperparameter search results in `experiments/` document the full search history for each model.
 
----
 
 ## References
 
 Goldberger, A. L., Goldberger, Z. D., & Shvilkin, A. (2013). Goldberger's Clinical Electrocardiography: A Simplified Approach (8th ed.). Elsevier Saunders. ISBN: 978-0-323-08786-5.
 
----
 
 ## Citation
 

@@ -1,0 +1,2 @@
+basal_pattern_accuracy,basal_pattern_precision,basal_pattern_recall,basal_pattern_f1,basal_pattern_f2,basal_pattern_auc,brugada_accuracy,brugada_precision,brugada_recall,brugada_f1,brugada_f2,brugada_auc,sudden_death_accuracy,sudden_death_precision,sudden_death_recall,sudden_death_f1,sudden_death_f2,sudden_death_auc
+0.7272727272727273,0.21428571428571427,0.42857142857142855,0.2857142857142857,0.35714285714285715,0.5684523809523809,0.8,0.5,0.9090909090909091,0.6451612903225806,0.78125,0.9008264462809917,0.9454545454545454,0.0,0.0,0.0,0.0,0.41666666666666663

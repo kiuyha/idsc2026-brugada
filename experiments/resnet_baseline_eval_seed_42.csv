@@ -1,0 +1,2 @@
+brugada_accuracy,brugada_precision,brugada_recall,brugada_f1,brugada_f2,brugada_auc,sudden_death_accuracy,sudden_death_precision,sudden_death_recall,sudden_death_f1,sudden_death_f2,sudden_death_auc
+0.8909090909090909,0.7142857142857143,0.8333333333333334,0.7692307692307693,0.8064516129032258,0.8953488372093025,0.9454545454545454,0.0,0.0,0.0,0.0,0.01851851851851849
