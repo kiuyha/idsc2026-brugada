@@ -7,7 +7,6 @@ data:
     time_shift: 0.1
   batch_size: 16
   correlation_threshold: 0.5
-  duration: 10
   leads: 12
   normalize: zscore_per_lead
   path: experiments/physionet.org/files/brugada-huca/1.0.0

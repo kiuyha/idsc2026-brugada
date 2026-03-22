@@ -5,7 +5,6 @@ seed: 42
 # Data
 data:
   path: "experiments/physionet.org/files/brugada-huca/1.0.0"
-  duration: 10  # seconds
   leads: 12
 
   # Data splits
