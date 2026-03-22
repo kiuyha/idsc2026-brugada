@@ -24,7 +24,7 @@ The Spatial GNN achieves higher recall (0.833 vs 0.733) at the cost of lower pre
 
 ## Dataset
 
-The project uses the Brugada-HUCA dataset (PhysioNet), which contains 12-lead ECG recordings from 363 patients: 76 diagnosed with Brugada syndrome and 287 normal controls. Signals are sampled at 100 Hz over 10-second windows, yielding 1000 samples per lead per patient.
+The project uses the Brugada-HUCA dataset (PhysioNet), which contains 12-lead ECG recordings from 363 patients: 76 diagnosed with Brugada syndrome and 287 normal controls. Signals are sampled at 100 Hz over 12-second, yielding 1200 samples per lead per patient.
 
 The dataset must be downloaded from PhysioNet and placed at the path specified in `configs/base.yml` under `data.path`. The expected directory structure is:
 
