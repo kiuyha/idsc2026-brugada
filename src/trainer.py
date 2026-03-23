@@ -62,7 +62,7 @@ class Trainer:
 
         self.best_metric_val = 0.0
         self.patience_counter = 0
-        self.primary_task = list(task_weights.keys())[0]
+        self.primary_task = 'brugada'
         
     def train_epoch(self):
         self.model.train()

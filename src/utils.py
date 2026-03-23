@@ -58,7 +58,7 @@ def save_config(config, save_path):
     save_path.parent.mkdir(parents=True, exist_ok=True)
     
     with open(save_path, 'w') as f:
-        yaml.dump(config, f, default_flow_style=False, indent=2)
+        yaml.dump(config, f, default_flow_style=False, indent=2, sort_keys=False)
 
 
 class FocalLoss(nn.Module):

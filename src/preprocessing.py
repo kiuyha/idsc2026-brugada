@@ -68,41 +68,6 @@ def build_anatomical_adjacency():
     
     return adj
 
-def build_visibility_graph(signal, device=None):
-    if device is None:
-        device = signal.device
-    
-    n = signal.shape[0]
-    signal_np = signal.cpu().numpy()
-    
-    edges = []
-    
-    # Efficient visibility check
-    for i in range(n):
-        for j in range(i + 2, min(i + 50, n)):
-            visible = True
-            
-            # Check if any point between i and j blocks visibility
-            for k in range(i + 1, j):
-                # Linear interpolation
-                y_line = signal_np[i] + (signal_np[j] - signal_np[i]) * (k - i) / (j - i)
-                
-                if signal_np[k] >= y_line:
-                    visible = False
-                    break
-            
-            if visible:
-                edges.append([i, j])
-                edges.append([j, i])  # Undirected
-    
-    # Empty graph fallback
-    if len(edges) > 0:
-        edge_index = torch.tensor(edges, dtype=torch.long, device=device).t()
-    else:
-        edge_index = torch.zeros((2, 0), dtype=torch.long, device=device)
-    
-    return edge_index, None
-
 def adjacency_to_edge_index(adj_matrix, threshold=0.3):
     num_nodes = adj_matrix.shape[0]
     edge_list = []
@@ -145,15 +110,17 @@ def normalize_signal(signal, method='zscore_per_lead'):
     else:
         raise ValueError(f"Unknown normalization method: {method}")
     
-def augment_ecg(signal, config):
+def augment_ecg(signal, config, fs):
     augmented = signal.copy()
 
     if config.get('noise_std', 0) > 0:
         noise = np.random.normal(0, config['noise_std'], signal.shape)
         augmented += noise
     
-    if config.get('time_shift', 0) > 0:
-        shift = np.random.randint(-config['time_shift'], config['time_shift'])
+    shift_in_seconds = config.get('time_shift', 0)
+    if shift_in_seconds > 0:
+        max_shift_samples = int(shift_in_seconds * fs) 
+        shift = np.random.randint(-max_shift_samples, max_shift_samples)
         augmented = np.roll(augmented, shift, axis=0)
     
     if config.get('amplitude_scale', 0) > 0:

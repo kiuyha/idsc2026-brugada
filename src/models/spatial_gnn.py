@@ -41,7 +41,7 @@ class SpatialGNN(BaseECGModel):
         if gnn_type == "gcn":
             return GCNConv(input_dim, output_dim, add_self_loops=True, **kwargs)
         elif gnn_type == "gat":
-            return GATConv(input_dim, output_dim, add_self_loops=True, **kwargs)
+            return GATConv(input_dim, output_dim, add_self_loops=True, edge_dim=1, **kwargs)
         elif gnn_type == "gin":
             return GINConv(nn=nn.Sequential(
                 nn.Linear(input_dim, output_dim),
@@ -88,11 +88,15 @@ class SpatialGNN(BaseECGModel):
         
         h = node_features
         for i, gnn in enumerate(self.gnns):
-            if isinstance(gnn, GCNConv) and edge_weight is not None:
-                edge_weight = edge_weight.clamp(-1.0, 1.0)
-                h = gnn(h, edge_index, edge_weight)
-            else:
-                h = gnn(h, edge_index)
+            if edge_weight is not None:
+                clamped_weight = edge_weight.clamp(-1.0, 1.0)
+                
+                if isinstance(gnn, GCNConv):
+                    h = gnn(h, edge_index, clamped_weight)
+                elif isinstance(gnn, GATConv):
+                    h = gnn(h, edge_index, edge_attr=clamped_weight.unsqueeze(-1))
+                else:
+                    h = gnn(h, edge_index)
 
             # Activation (except last layer)
             if i < len(self.gnns) - 1:
@@ -101,7 +105,7 @@ class SpatialGNN(BaseECGModel):
         return h.view(batch_size, self.num_leads, -1)     
     
     def get_lead_importance(self, x, edge_index=None, edge_weight=None):
-        spatial_emb = self.get_embeddings(x, edge_index, edge_weight, layer='spatial')
+        spatial_emb = self.get_embeddings(x, edge_index, edge_weight)
         
         # Compute L2 norm as importance measure
         lead_importance = torch.norm(spatial_emb, p=2, dim=2)
@@ -110,3 +114,12 @@ class SpatialGNN(BaseECGModel):
         lead_importance = lead_importance / (lead_importance.sum(dim=1, keepdim=True) + 1e-8)
         
         return lead_importance
+    
+    def get_learned_edges(self, x, edge_index, edge_weight=None):
+        h = self.get_embeddings(x, layer='temporal').view(x.shape[0] * self.num_leads, -1)
+        for gnn in self.gnns:
+            # Only works for GAT since it learns edge weights
+            if isinstance(gnn, GATConv):
+                h, (ei, alpha) = gnn(h, edge_index, edge_attr=edge_weight.unsqueeze(-1), return_attention_weights=True)
+                return ei, alpha.mean(dim=-1).detach()
+        return edge_index, edge_weight
