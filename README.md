@@ -140,8 +140,6 @@ The correlation adjacency is computed per patient from the Pearson correlation m
 hybrid_adj = anatomic_weight * anatomical_adj + (1 - anatomic_weight) * correlation_adj
 ```
 
-Edges are retained only where the hybrid weight exceeds `correlation_threshold`, pruning weak or noisy connections. Both `anatomic_weight` and `correlation_threshold` are treated as hyperparameters and tuned during search. The resulting edge index and edge weights are batched across patients in the dataloader using node index offsets of 12 per sample.
-
 This construction is particularly motivated by the localized nature of Brugada syndrome. The defining ECG pattern — coved-type ST elevation with negative T-wave — is almost exclusively expressed in the right precordial leads V1 and V2. By anchoring the graph structure to known anatomical connectivity, the GNN is guided to attend to the clinically relevant neighbourhood around V1 and V2 rather than discovering it purely from data on a dataset of only 363 patients.
 
 Note that limb leads (indices 0-5) and precordial leads (indices 6-11) have no direct edges in the anatomical adjacency matrix. Cross-group connections can only arise through the correlation component when two leads from different groups exhibit strong Pearson correlation above the threshold. This design choice reflects the anatomical reality that limb leads and precordial leads record fundamentally different projections of the cardiac electrical vector.
