@@ -14,9 +14,9 @@ data:
 
   # Data augmentation
   augmentation:
-    enabled: false
+    enabled: true
     noise_std: 0.01
-    time_shift: 0.1
+    time_shift: 0.1  # in seconds
     amplitude_scale: 0.1
 
   batch_size: 16
@@ -29,7 +29,7 @@ model:
   type: "resnet_baseline"  # Options: resnet_baseline, spatial_gnn
   params:
     dropout: 0.4
-    resnet_channels: [48, 96, 192]
+    resnet_channels: [32, 64, 128, 256]
     kernel_size: 7
 
 # Multi-task setup

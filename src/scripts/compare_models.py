@@ -49,9 +49,7 @@ def main():
     print("Starting Model Comparison")
     print(f"Will run {len(CONFIGS)} models across {len(TEST_SEEDS)} seeds each.\n")
     
-    base_config = load_config('configs/base.yml')
-    primary_task = list(base_config['tasks'].keys())[0]
-    
+    primary_task = 'brugada'
     metrics_to_track = ['accuracy', 'precision', 'recall', 'f1', 'auc', 'f2']
     tracked_cols = [f"{primary_task}_{m}" for m in metrics_to_track]
     

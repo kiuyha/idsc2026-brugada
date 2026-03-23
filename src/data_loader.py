@@ -46,7 +46,7 @@ class BrugadaDataset(Dataset):
             signal = normalize_signal(signal, method=self.normalize)
         
         if self.augment_config.get('enabled', False):
-            signal = augment_ecg(signal, self.augment_config)
+            signal = augment_ecg(signal, self.augment_config, fs)
         
         labels_dict = {}
         for task in self.enabled_tasks:
@@ -105,7 +105,7 @@ def get_dataloaders(config):
     )
     
     total_size = len(full_dataset)
-    primary_task = enabled_tasks[0]
+    primary_task = 'brugada'
     labels = full_dataset.labels[primary_task]
     
     train_size = int(data_cfg['train_split'] * total_size)

@@ -211,5 +211,6 @@ experiments/*
 !experiments/hyperparam_search*
 !experiments/*_eval_seed_*
 !experiments/model_comparison.csv
+!experiments/xai_*
 test*
 configs/variants

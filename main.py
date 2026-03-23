@@ -3,6 +3,7 @@ from src.utils import load_config, set_seed
 from src.data_loader import get_dataloaders
 from src.models import build_model
 from src.trainer import Trainer, TraditionalTrainer
+from src.interpretability import generate_xai_from_dataset
 import pandas as pd
 
 def main(args):
@@ -32,8 +33,9 @@ def main(args):
             except:
                 target[final_key] = value
     
+    model_type = config['model']['type']
     print(f"Experiment: {config['experiment_name']}")
-    print(f"Model: {config['model']['type']}")
+    print(f"Model: {model_type}")
     print(f"Device: {config['device']}")
     print(f"Seed: {config['seed']}")
     
@@ -49,7 +51,7 @@ def main(args):
     model = build_model(config)
     print(f"Model parameters: {model.num_parameters:,}\n")
 
-    trainer = Trainer if config['model']['type'] != 'hgb_baseline' else TraditionalTrainer
+    trainer = Trainer if model_type != 'hgb_baseline' else TraditionalTrainer
     trainer = trainer(model, config, train_loader, val_loader, test_loader)
     trainer.train()
     test_result = trainer.testing()
@@ -60,6 +62,18 @@ def main(args):
             flat_results[f"{task}_{metric}"] = value
 
     pd.DataFrame([flat_results]).to_csv(f"experiments/{config['experiment_name']}.csv", index=False)
+    
+    if model_type != 'hgb_baseline':  # Skip XAI for traditional ML if it's unsupported
+        try:
+            # We use the test_loader's dataset so it doesn't leak training data
+            generate_xai_from_dataset(
+                model=trainer.model, 
+                dataset=test_loader.dataset, 
+                config=config, 
+                args=args
+            )
+        except Exception as e:
+            print(f"Failed to generate XAI report: {e}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -108,6 +122,25 @@ Examples:
         default=[],
         help='Override config values (e.g., training.learning_rate=0.001 data.batch_size=32)'
     )
+    parser.add_argument(
+        '--patient_id',
+        type=str,
+        default=None,
+        help="Select specific patient ID (e.g. 1)"
+    )
+    parser.add_argument(
+        '--top_k',
+        type=int,
+        default=3,
+        help="Use the top k of lead according to importance (default: 3)"
+    )
+    parser.add_argument(
+        '--output',
+        type=str,
+        default=None,
+        help="Output path for the plot image"
+    )
+
     args = parser.parse_args()
     
     main(args)

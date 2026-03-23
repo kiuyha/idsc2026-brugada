@@ -141,7 +141,7 @@ def run_hyperparameter_search(model_type, search_type='grid', n_random=20, max_t
     # Seed once so random sampling is reproducible
     set_seed(base_config.get('seed', 42))
 
-    primary_task = list(base_config['tasks'].keys())[0]
+    primary_task = 'brugada'
     base_metric = base_config.get('evaluation', {}).get('primary_metric', 'f2')
     primary_metric = f"{primary_task}_{base_metric}"
     acc_metric = f"{primary_task}_accuracy"
