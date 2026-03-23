@@ -125,10 +125,34 @@ The ResNet processes all 12 leads simultaneously as a multi-channel 1D signal. T
 The SpatialGNN uses a per-lead ResNet encoder to extract temporal embeddings, then applies graph convolution over a lead-level graph where nodes are leads and edges represent inter-lead spatial relationships.
 
 #### Graph Construction
-The lead graph is constructed per patient as a weighted combination of two adjacency matrices: a fixed anatomical adjacency and a data-driven correlation adjacency. This hybrid formulation incorporates domain knowledge about electrode placement alongside learned signal correlations.
-The anatomical adjacency encodes the known physical and electrical relationships between the 12 standard leads (Einthoven's triangle for limb leads, and sequential physical placement for precordial leads). The correlation adjacency is computed per patient from the Pearson correlation matrix of the 12 lead signals.
 
-Edges are retained only where the hybrid weight exceeds `correlation_threshold`, pruning weak or noisy connections. This construction is particularly motivated by the localized nature of Brugada syndrome (typically expressed in the right precordial leads V1 and V2).
+The lead graph is constructed per patient as a weighted combination of two adjacency matrices: a fixed anatomical adjacency and a data-driven correlation adjacency. This hybrid formulation incorporates domain knowledge about electrode placement alongside learned signal correlations to produce clinically grounded graph structures.
+
+The anatomical adjacency encodes the known physical and electrical relationships between the 12 standard leads. The lead ordering used throughout is I, II, III, aVR, aVL, aVF (indices 0-5, limb leads) and V1, V2, V3, V4, V5, V6 (indices 6-11, precordial leads). Connections are defined by two clinical principles.
+
+For the limb leads, edges follow Einthoven's triangle (Goldberger et al., 2013, p. 19), which describes the three standard bipolar leads (I, II, III) as forming a triangle of potential differences around the heart, with aVR, aVL, and aVF derived as augmented unipolar leads from the same electrode set. The specific connections implemented are I-II, I-aVL, II-III, II-aVF, III-aVF, aVR-aVL, aVR-aVF, and aVL-aVF.
+
+For the precordial leads, edges connect sequentially adjacent electrodes (V1-V2, V2-V3, V3-V4, V4-V5, V5-V6), reflecting their physical placement across the chest wall. Goldberger et al. (2013, p. 22) describes V1 through V6 as electrodes placed at six designated positions progressing across the chest wall, with each electrode recording the electrical field at its immediate anatomical location — justifying the sequential edge structure.
+
+The correlation adjacency is computed per patient from the Pearson correlation matrix of the 12 lead signals, capturing dynamic inter-lead relationships that vary with individual cardiac anatomy and pathology. These two matrices are combined as:
+
+```python
+hybrid_adj = anatomic_weight * anatomical_adj + (1 - anatomic_weight) * correlation_adj
+```
+
+Edges are retained only where the hybrid weight exceeds `correlation_threshold`, pruning weak or noisy connections. Both `anatomic_weight` and `correlation_threshold` are treated as hyperparameters and tuned during search. The resulting edge index and edge weights are batched across patients in the dataloader using node index offsets of 12 per sample.
+
+This construction is particularly motivated by the localized nature of Brugada syndrome. The defining ECG pattern — coved-type ST elevation with negative T-wave — is almost exclusively expressed in the right precordial leads V1 and V2. By anchoring the graph structure to known anatomical connectivity, the GNN is guided to attend to the clinically relevant neighbourhood around V1 and V2 rather than discovering it purely from data on a dataset of only 363 patients.
+
+Note that limb leads (indices 0-5) and precordial leads (indices 6-11) have no direct edges in the anatomical adjacency matrix. Cross-group connections can only arise through the correlation component when two leads from different groups exhibit strong Pearson correlation above the threshold. This design choice reflects the anatomical reality that limb leads and precordial leads record fundamentally different projections of the cardiac electrical vector.
+
+#### GNN Architecture
+
+The GNN supports GCN, GAT, and GIN layer types. GCN and GAT use `add_self_loops=True` and accept edge weights. GIN requires an explicit MLP per layer and does not use edge weights since its expressiveness is encoded in the epsilon-based self-feature weighting. BatchNorm is not applied after GNN layers because the effective batch over which normalization occurs is only 12 nodes per sample (the number of leads), which is insufficient for stable batch statistics.
+
+Lead importance scores are computed in `get_lead_importance()` as the L2 norm of each node's final GNN embedding, normalized across leads. Higher norm indicates greater contribution to the classification decision.
+
+Edges are retained only where the hybrid weight exceeds `correlation_threshold`, pruning weak or noisy connections. This construction is particularly motivated by the localized nature of Brugada syndrome (typically expressed in the right precordial leads V1 and V2). This retrain edge weight only happen on GAT since GCN will used initial edge weight and GIN will not use edge weight.
 
 ## Training
 
@@ -181,6 +205,13 @@ When models are evaluated, XAI reports are generated (e.g., `experiments/xai_spa
 ![Spatial GNN XAI](https://raw.githubusercontent.com/kiuyha/idsc2026-brugada/main/experiments/xai_spatial_gnn_3072836.png)
 
 The `notebook.ipynb` workspace provides an interactive environment to load specific patient IDs, run inference, and generate these visualizations post-hoc.
+
+## Reproducibility
+- All randomness in the pipeline is controlled through a single seed value in the config, which is passed to Python's `random`, NumPy, and PyTorch (including CUDA) via `set_seed()` in `utils.py`. CUDA determinism is enforced via `torch.backends.cudnn.deterministic = True`.
+
+- The train/validation/test split is performed using stratified sampling with the config seed as the `random_state`, ensuring the same seed always produces the same split. This means that changing only the seed in the comparison script genuinely varies both the data partition and the weight initialization independently.
+
+- To exactly reproduce the reported results, run `compare_models.py` using the configs in `configs/best/` without modification. The hyperparameter search results in `experiments/` document the full search history for each model.
 
 ## References
 Goldberger, A. L., Goldberger, Z. D., & Shvilkin, A. (2013). Goldberger's Clinical Electrocardiography: A Simplified Approach (8th ed.). Elsevier Saunders. ISBN: 978-0-323-08786-5.
