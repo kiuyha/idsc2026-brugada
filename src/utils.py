@@ -5,6 +5,7 @@ import torch
 from pathlib import Path
 import torch.nn as nn
 import torch.nn.functional as F
+import os
 
 def load_config(config_path):
     config_path = Path(config_path)
@@ -14,14 +15,42 @@ def load_config(config_path):
     
     # Handle inheritance (_base_ key)
     if '_base_' in config:
-        base_path = config_path.parent / config['_base_']
-        base_config = load_config(base_path)
+        base_config_path = config_path.parent / config['_base_']
+        base_config = load_config(base_config_path)
 
         base_config = deep_update(base_config, config)
         config = base_config
         config.pop('_base_', None)
     
     return config
+
+def save_config(config, save_path, base_config_path = 'configs/base.yml'):
+    save_path = Path(save_path)
+    base_config_path = Path(base_config_path)
+    base_config = load_config(base_config_path)
+    
+    minimal_config = get_dict_diff(base_config, config)
+    rel_base = os.path.relpath(base_config_path, save_path.parent)
+    
+    final_config = {'_base_': rel_base}
+    final_config.update(minimal_config)
+    
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(save_path, 'w') as f:
+        yaml.dump(final_config, f, default_flow_style=False, indent=2, sort_keys=False)
+
+def get_dict_diff(base, current):
+    diff = {}
+    for k, v in current.items():
+        if k not in base:
+            diff[k] = v
+        elif isinstance(v, dict) and isinstance(base.get(k), dict):
+            nested_diff = get_dict_diff(base[k], v)
+            if nested_diff:  # Only add if there are differences inside
+                diff[k] = nested_diff
+        elif base.get(k) != v:
+            diff[k] = v
+    return diff
 
 def deep_update(base_dict, update_dict):
     for key, value in update_dict.items():
@@ -52,14 +81,6 @@ def get_device(config):
     
     print(f"Using device: {device}")
     return device
-
-def save_config(config, save_path):
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    with open(save_path, 'w') as f:
-        yaml.dump(config, f, default_flow_style=False, indent=2, sort_keys=False)
-
 
 class FocalLoss(nn.Module):
     def __init__(self, alpha=0.79, gamma=2.0, reduction='mean'):

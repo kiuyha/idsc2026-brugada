@@ -44,54 +44,33 @@ When `enabled: true`, the following perturbations are applied during training:
 *   `time_shift` (e.g., `0.1`): Randomly shifts the signal along the temporal axis (in seconds) to prevent the model from overfitting to specific alignment points in the 12-second window.
 *   `noise_std` (e.g., `0.01`): Injects Gaussian noise to simulate baseline wander, muscle artifacts, and powerline interference.
 
-
 ## Project Structure
-
-```
+```text
 .
 ├── configs/                        # YAML configuration files
 │   ├── base.yml                    # Base config inherited by all models
-│   ├── hgb_baseline.yml            # HGB model config
-│   ├── resnet_baseline.yml         # ResNet model config
-│   ├── spatial_gnn.yml             # Spatial GNN model config
-│   └── best/                       # Best configs saved after hyperparameter search
-│       ├── hgb_baseline.yml
-│       ├── resnet_baseline.yml
-│       └── spatial_gnn.yml
-├── experiments/                    # All output artifacts
-│   ├── hyperparam_search_hgb_baseline_random.csv
-│   ├── hyperparam_search_resnet_baseline_random.csv
-│   ├── hyperparam_search_spatial_gnn_random.csv
-│   └── model_comparison.csv
+│   ├── best/                       # Best configs saved after hyperparameter search
+│   └── *.yml                       # Architecture-specific overrides
+├── experiments/                    # Output artifacts, evaluation CSVs, and XAI plots
+│   └── physionet.org/files/...     # Default expected download path for the dataset
 ├── src/
 │   ├── data_loader.py              # Dataset class, graph construction, dataloaders
 │   ├── interpretability.py         # Lead importance, Grad-CAM, and visualization utilities
-│   ├── metrics.py                  # Metric computation (F2, AUC, precision, recall)
 │   ├── preprocessing.py            # Signal filtering, normalization, adjacency construction
-│   ├── trainer.py                  # Training loops for DL and traditional models
-│   ├── utils.py                    # Config loading, seeding, loss functions
-│   └── models/
-│       ├── base.py                 # Abstract base class for all models
-│       ├── hgb_baseline.py         # Histogram Gradient Boosting with ECG feature extraction
-│       ├── resnet_baseline.py      # 1D ResNet for temporal ECG classification
-│       └── spatial_gnn.py          # ResNet encoder + GCN/GAT graph neural network
+│   ├── models/                     # Model architecture definitions (ResNet, SpatialGNN, HGB)
+│   └── scripts/                    # Automation scripts (hyperparam search, model comparison)
 ├── main.py                         # Training and evaluation entry point
 ├── notebook.ipynb                  # Interpretability analysis and visualization
-└── src/scripts/
-    ├── hyperparameter_search.py    # Random and grid search over model configs
-    └── compare_models.py           # Multi-seed model comparison and final results
+├── pyproject.toml / uv.lock        # Modern Python dependency management
+└── requirements.txt                # Fallback dependency list
 ```
 
 ## Installation
-
-The project uses `uv` for dependency management. To install:
-
+The project uses `uv` for lightning-fast dependency management. To install:
 ```bash
 uv sync
 ```
-
 Alternatively with pip:
-
 ```bash
 pip install -r requirements.txt
 ```
@@ -99,19 +78,17 @@ pip install -r requirements.txt
 Python 3.10 or later is required. The `.python-version` file specifies the exact version used during development.
 
 ## Configuration System
-
-All experiments are controlled through YAML configuration files. Model-specific configs inherit from `configs/base.yml` using the `_base_` key, which triggers deep merging at load time — only fields explicitly set in the child config override the base.
-
-The base config defines data paths, training hyperparameters, task definitions, loss function parameters, and evaluation settings. Any field can be overridden at runtime using the `--override` flag in `main.py` without modifying config files.
+All experiments are controlled through YAML configuration files. Model-specific configs (including those in the `configs/best/` directory) inherit from `configs/base.yml` using the `_base_` key, which triggers deep merging at load time — only fields explicitly set in the child config override the base.
 
 The key fields in `configs/base.yml`:
-- `data.path`: path to the PhysioNet dataset directory
+- `data.path`: path to the PhysioNet dataset directory (default: `experiments/physionet.org/files/brugada-huca/1.0.0`)
 - `data.augmentation`: block to configure physiological signal perturbations (`amplitude_scale`, `time_shift`, `noise_std`)
 - `data.correlation_threshold`: edge pruning threshold for the hybrid adjacency matrix (spatial GNN only)
 - `data.anatomic_weight`: weight given to the fixed anatomical adjacency versus the data-driven correlation adjacency (spatial GNN only)
 - `training.loss_function`: either `focal` or `bce`; focal loss is used with `alpha=0.79` derived from the class distribution (287/363)
 - `tasks`: each task has an `enabled` flag and a `weight` controlling its contribution to the multi-task loss
 - `evaluation.primary_metric`: the metric used for early stopping and checkpoint saving; set to `f2` throughout
+
 
 ## Models
 
