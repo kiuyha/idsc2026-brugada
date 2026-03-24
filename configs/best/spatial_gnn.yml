@@ -1,74 +1,19 @@
+_base_: ../base.yml
 experiment_name: spatial_gnn
-seed: 42
 data:
-  path: experiments/physionet.org/files/brugada-huca/1.0.0
-  leads: 12
-  train_split: 0.7
-  val_split: 0.15
-  test_split: 0.15
-  augmentation:
-    enabled: true
-    noise_std: 0.01
-    time_shift: 0.1
-    amplitude_scale: 0.1
-  batch_size: 16
-  normalize: zscore_per_lead
   correlation_threshold: 0.6
   anatomic_weight: 0.7
 model:
   type: spatial_gnn
   params:
     dropout: 0.5
-    resnet_channels:
-    - 32
-    - 64
-    - 128
-    - 256
-    kernel_size: 7
     hidden_dim: 64
     num_gnn_layers: 3
     gnn_type: gat
     gnn_kwargs: {}
 tasks:
-  brugada:
-    weight: 1.0
-    enabled: true
   basal_pattern:
-    weight: 0.3
     enabled: true
-  sudden_death:
-    weight: 0.3
-    enabled: false
 training:
-  epochs: 150
-  optimizer: adamw
   learning_rate: 0.0012
   weight_decay: 0.01
-  scheduler: cosine
-  warmup_epochs: 10
-  min_lr: 1.0e-06
-  early_stopping_patience: 15
-  use_mixing_precision: false
-  gradient_clip_norm: 1.0
-  loss_function: focal
-  loss_params:
-    alpha: 0.79
-    gamma: 2.0
-    reduction: mean
-  save_best_only: true
-  checkpoint_dir: experiments
-  checkpoint_name: best_model.pt
-  log_interval: 50
-  save_plots: true
-  verbose: true
-evaluation:
-  metrics_list:
-  - accuracy
-  - precision
-  - recall
-  - f1
-  - f2
-  - auc
-  primary_metric: f2
-device: auto
-num_workers: -1
