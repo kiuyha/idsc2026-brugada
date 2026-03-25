@@ -10,7 +10,7 @@ The following table reports mean and standard deviation across 5 independent see
 
 F2 score weights recall twice as heavily as precision, reflecting the clinical cost asymmetry in Brugada syndrome screening: a missed positive case (false negative) carries a risk of sudden cardiac death, while a false positive results in an unnecessary but non-harmful cardiology referral. Accuracy is included for completeness but is not a meaningful metric given the class imbalance. It is also worth noting that a trivial classifier predicting all negatives would achieve approximately 79% accuracy.
 
-| Model | Accuracy | Precision | Recall | F1 | AUC | F2 |
+| Model | Accuracy | Precision | Recall | F1 | ROC-AUC | F2 |
 |---|---|---|---|---|---|---|
 | ResNet | **0.8255 ± 0.0374** | **0.5853 ± 0.0841** | 0.7833 ± 0.1000 | **0.6630 ± 0.0575** | **0.8713 ± 0.0439** | **0.7282 ± 0.0721** |
 | Spatial GNN | 0.7455 ± 0.0905 | 0.4791 ± 0.0958 | **0.8500 ± 0.1616** | 0.5996 ± 0.0866 | 0.8465 ± 0.0728 | 0.7212 ± 0.1039 |
