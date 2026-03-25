@@ -3,10 +3,6 @@ experiment_name: hgb_baseline
 model:
   type: hgb_baseline
   params:
-    resnet_channels:
-    - 48
-    - 96
-    - 192
     max_depth: 3
     max_iter: 200
     class_weight: balanced
