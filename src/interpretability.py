@@ -7,9 +7,17 @@ import matplotlib.gridspec as gridspec
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
 from typing import Optional, List
+from sklearn.inspection import permutation_importance
 
 LEAD_NAMES = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']
 BRUGADA_LEADS = ['V1', 'V2', 'V3']
+HGB_FEATURES = [
+    'mean', 'std', 'max', 'min',
+    'st_elevation', 'j_point',
+    'st_slope', 'r_prime_amp',
+    'qrs_duration', 't_wave_mean',
+]
+
 class GradCAM:
     def __init__(self, model: nn.Module, target_layer: nn.Module):
         self.model = model
@@ -65,7 +73,6 @@ class GradCAM:
     def remove_hooks(self):
         self._hook_forward.remove()
         self._hook_backward.remove()
-
 
 class GNNAttentionMapper:
     def __init__(self, model: nn.Module):
@@ -197,8 +204,7 @@ class GNNAttentionMapper:
             plt.savefig(save_path, dpi=150, bbox_inches='tight')
 
         return ax
-    
-
+   
 def plot_gradcam_signal(
     signal: np.ndarray,
     heatmap: np.ndarray,
@@ -237,6 +243,74 @@ def plot_gradcam_signal(
 
     return ax
 
+def plot_hgb_feature_importance(
+    model,
+    feature_names: List[str],
+    X: np.ndarray,
+    y: np.ndarray,
+    top_k: int = 20,
+    patient_id: str = '?',
+    save_path: Optional[str] = None,
+):
+    _, ax = plt.subplots(figsize=(10, 6))
+    estimator = model.estimators_[0] if hasattr(model, 'estimators_') else model
+    result = permutation_importance(estimator, X, y, n_repeats=10, random_state=42, n_jobs=-1)
+    importances = result.importances_mean
+
+    indices = np.argsort(importances)[::-1][:top_k]
+    top_features = [feature_names[i] for i in indices]
+    top_importances = importances[indices]
+
+    colors = [
+        '#d44' if any(lead in feat for lead in BRUGADA_LEADS) else 'steelblue'
+        for feat in top_features
+    ]
+
+    ax.barh(top_features[::-1], top_importances[::-1], color=colors[::-1], edgecolor='white')
+    ax.set_title(f'HGB Feature Importance — Patient {patient_id}', fontsize=12, fontweight='bold')
+    ax.set_xlabel('Permutation Importance (mean accuracy decrease)')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.text(0.99, 0.01, 'V1/V2/V3 features in red',
+            transform=ax.transAxes, fontsize=8, va='bottom', ha='right', color='#d44')
+
+    if save_path:
+        plt.tight_layout()
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        print(f'[saved] {save_path}')
+
+    plt.show()
+
+def find_fn_index(model, dataset, device, task, is_hgb) -> Optional[int]:
+    for i in range(len(dataset)):
+        sample = dataset[i]
+        label = int(sample['labels'][task].item())
+        if label != 1:
+            continue
+
+        if is_hgb:
+            features = model.extract_features(sample['signal'].unsqueeze(0))
+            raw_probs = model.model.predict_proba(features)
+            probs_list = raw_probs if not isinstance(raw_probs, np.ndarray) else [raw_probs]
+            brugada_prob = probs_list[0][0, 1] if probs_list[0].ndim == 2 else probs_list[0].flatten()[0]
+            pred = int(brugada_prob > 0.5)
+        else:
+            x = sample['signal'].unsqueeze(0).to(device)
+            edge_index = sample.get('edge_index')
+            edge_weight = sample.get('edge_weight')
+            if edge_index is not None:
+                edge_index = edge_index.to(device)
+            if edge_weight is not None:
+                edge_weight = edge_weight.to(device)
+
+            with torch.no_grad():
+                outputs = model(x, edge_index, edge_weight) if edge_index is not None else model(x)
+                pred = int((torch.sigmoid(outputs[task]) > 0.5).item())
+
+        if pred == 0:
+            return i
+
+    return None
 
 def _get_target_layer(model: nn.Module, model_type: str) -> Optional[nn.Module]:
     if model_type == 'spatial_gnn':
@@ -245,11 +319,11 @@ def _get_target_layer(model: nn.Module, model_type: str) -> Optional[nn.Module]:
         return model.blocks[-1]
     return None
 
-
 def plot_xai_report(
     model: nn.Module,
     model_type: str,
     x: torch.Tensor,
+    dataset,
     edge_index: Optional[torch.Tensor] = None,
     edge_weight: Optional[torch.Tensor] = None,
     task: str = 'brugada',
@@ -258,6 +332,26 @@ def plot_xai_report(
     label: int = 1,
     save_path: str = 'xai_report.png',
 ):
+    if model_type == 'hgb_baseline':
+        feature_names = [f'{feat}_{lead}' for feat in HGB_FEATURES for lead in LEAD_NAMES]
+        all_features = [
+            model.extract_features(dataset[i]['signal'].unsqueeze(0))
+            for i in range(len(dataset))
+        ]
+        all_labels = [int(dataset[i]['labels'][task].item()) for i in range(len(dataset))]
+        hgb_X = np.vstack(all_features)
+        hgb_y = np.array(all_labels)
+
+        plot_hgb_feature_importance(
+            model.model,
+            feature_names=feature_names,
+            patient_id=patient_id,
+            save_path=save_path,
+            X=hgb_X,
+            y=hgb_y,
+        )
+        return
+
     signal = x.squeeze(0).cpu().detach().numpy()
     has_gnn = hasattr(model, 'get_lead_importance')
 
@@ -312,10 +406,10 @@ def plot_xai_report(
 
 def generate_xai_from_dataset(model, dataset, config, args):
     model.eval()
-    device = next(model.parameters()).device
     model_type = config['model']['type']
     primary_task = 'brugada'
-    
+    is_hgb = model_type == 'hgb_baseline'
+
     idx = None
     
     # Safely extract patient IDs and labels whether it's a Subset or full Dataset
@@ -360,23 +454,27 @@ def generate_xai_from_dataset(model, dataset, config, args):
 
     sample = dataset[idx]
     patient_id = sample['patient_id']
-    x = sample['signal'].unsqueeze(0).to(device)
     label = int(sample['labels'][primary_task].item())
+
+    # DL-only variables — HGB doesn't use signal or device
+    device, x, edge_index, edge_weight = None, None, None, None
+    if not is_hgb:
+        device = next(model.parameters()).device
+        x = sample['signal'].unsqueeze(0).to(device)
+        edge_index = sample.get('edge_index', None)
+        edge_weight = sample.get('edge_weight', None)
+        if edge_index is not None:
+            edge_index = edge_index.to(device)
+        if edge_weight is not None:
+            edge_weight = edge_weight.to(device)
     
-    edge_index = sample.get('edge_index', None)
-    edge_weight = sample.get('edge_weight', None)
-    
-    if edge_index is not None:
-        edge_index = edge_index.to(device)
-    if edge_weight is not None:
-        edge_weight = edge_weight.to(device)
-        
     out = args.output or f"experiments/xai_{config['experiment_name']}_{patient_id}.png"
-    
+
     plot_xai_report(
         model=model,
         model_type=model_type,
         x=x,
+        dataset=dataset,
         edge_index=edge_index,
         edge_weight=edge_weight,
         task=primary_task,
@@ -385,3 +483,39 @@ def generate_xai_from_dataset(model, dataset, config, args):
         label=label,
         save_path=out
     )
+
+    print("Searching for a False Negative patient...")
+    fn_idx = find_fn_index(model, dataset, device, primary_task, is_hgb)
+
+    if fn_idx is not None:
+        fn_sample = dataset[fn_idx]
+        fn_patient_id = fn_sample['patient_id']
+        fn_out = f"experiments/xai_{config['experiment_name']}_{fn_patient_id}_fn.png"
+        print(f"Generating FN report for Patient {fn_patient_id}...")
+
+        # DL-only variables — HGB doesn't use signal or device
+        fn_x, fn_edge_index, fn_edge_weight = None, None, None
+        if not is_hgb:
+            fn_x = fn_sample['signal'].unsqueeze(0).to(device)
+            fn_edge_index = fn_sample.get('edge_index')
+            fn_edge_weight = fn_sample.get('edge_weight')
+            if fn_edge_index is not None:
+                fn_edge_index = fn_edge_index.to(device)
+            if fn_edge_weight is not None:
+                fn_edge_weight = fn_edge_weight.to(device)
+
+        plot_xai_report(
+            model=model,
+            model_type=model_type,
+            x=fn_x,
+            dataset=dataset,
+            edge_index=fn_edge_index,
+            edge_weight=fn_edge_weight,
+            task=primary_task,
+            top_k=args.top_k,
+            patient_id=fn_patient_id,
+            label=1,
+            save_path=fn_out,
+        )
+    else:
+        print("No False Negatives found in this split — model has perfect recall here.")
