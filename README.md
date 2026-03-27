@@ -129,6 +129,43 @@ Lead importance scores are computed in `get_lead_importance()` as the L2 norm of
 
 Edges are retained only where the hybrid weight exceeds `correlation_threshold`, pruning weak or noisy connections. This construction is particularly motivated by the localized nature of Brugada syndrome (typically expressed in the right precordial leads V1 and V2). This retrain edge weight only happen on GAT since GCN will used initial edge weight and GIN will not use edge weight.
 
+#### Mathematical Formulation
+
+The SpatialGNN processes each patient's 12-lead ECG through two sequential stages: temporal encoding and spatial aggregation.
+
+**Temporal Encoding.** Each lead signal $x_i \in \mathbb{R}^{T}$ is independently passed through a shared per-lead ResNet encoder $f_\theta$ to produce a node feature vector:
+
+$$h_i^{(0)} = f_\theta(x_i), \quad h_i^{(0)} \in \mathbb{R}^{D}$$
+
+where $T = 1200$ (samples per lead) and $D$ is the embedding dimension controlled by `resnet_channels`.
+
+**Graph Convolution.** Node features are updated over $L$ GNN layers. For a GCN layer, the update rule follows:
+
+$$h_i^{(l+1)} = \sigma\!\left( \sum_{j \in \mathcal{N}(i) \cup \{i\}} \frac{w_{ij}}{\sqrt{d_i d_j}}\, W^{(l)} h_j^{(l)} \right)$$
+
+where $\mathcal{N}(i)$ is the neighbourhood of node $i$ defined by the hybrid adjacency matrix, $w_{ij}$ is the edge weight, $d_i$ is the weighted degree of node $i$, $W^{(l)}$ is a learnable weight matrix, and $\sigma$ is ELU activation.
+
+For GAT layers, the aggregation is instead governed by learned attention coefficients:
+
+$$\alpha_{ij} = \frac{\exp\!\left(\text{LeakyReLU}(a^\top [W h_i^{(l)} \| W h_j^{(l)}])\right)}{\sum_{k \in \mathcal{N}(i)} \exp\!\left(\text{LeakyReLU}(a^\top [W h_i^{(l)} \| W h_k^{(l)}])\right)}$$
+
+$$h_i^{(l+1)} = \sigma\!\left( \sum_{j \in \mathcal{N}(i)} \alpha_{ij}\, W h_j^{(l)} \right)$$
+
+**Graph Readout.** After $L$ layers, global average pooling aggregates all node embeddings into a single graph-level representation:
+
+$$z = \frac{1}{12} \sum_{i=1}^{12} h_i^{(L)}, \quad z \in \mathbb{R}^{D}$$
+
+**Multi-Task Classification Head.** The graph embedding $z$ is passed to task-specific MLP heads. The total training objective is a weighted sum of focal losses across the primary task (Brugada classification) and auxiliary tasks:
+
+$$\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{FL}}^{\text{brugada}} + \lambda \sum_{k} \mathcal{L}_{\text{FL}}^{(k)}$$
+
+where $\lambda = 0.3$ weights the auxiliary contributions. Focal loss for each task is defined as:
+
+$$\mathcal{L}_{\text{FL}}(p_t) = -\alpha_t (1 - p_t)^\gamma \log(p_t)$$
+
+with $\alpha = 0.79$ derived from the inverse class frequency $(287/363)$ and $\gamma = 2.0$.
+
+
 ## Training
 
 ### Single Run
@@ -166,21 +203,55 @@ python -m src.scripts.compare_models
 This script reads from `configs/best/` for each model, runs training and evaluation per seed, aggregates mean and standard deviation of all metrics across seeds, and writes the final comparison table to `experiments/model_comparison.csv`.
 
 ## Interpretability
-The interpretability pipeline relies on a combination of **Grad-CAM (Gradient-weighted Class Activation Mapping)** for temporal feature attribution and **GNN Attention Mapping** for spatial (lead-wise) importance.
 
-When models are evaluated, XAI reports are generated (e.g., `experiments/xai_spatial_gnn_3072836.png`). The visual outputs include:
-*   **Temporal Grad-CAM Signal Intensity**: Heatmaps overlaying the raw 12-second ECG signal to pinpoint exactly *when* the model detects pathological morphology (such as the coved-type ST-segment elevation).
-*   **Lead Importance Bar Chart (GNN only)**: Extracted from the L2 norm of the graph embeddings, showing which physical leads (e.g., V1, V2) contributed most heavily to the classification.
-*   **Lead Connectivity Graph (GNN only)**: A node-link diagram projecting the learned and anatomical edge weights among the 12 leads over the patient's specific cardiac electrical state.
+The interpretability pipeline covers all three model types, combining **Grad-CAM** for temporal attribution, **GNN Lead Importance** for spatial attribution, and **Permutation Importance** for classical feature attribution.
 
-### 1D ResNet — Grad-CAM (Patient 3072836)
+When models are evaluated, XAI reports are automatically generated for both a Brugada-positive (TP) patient and, where available, a False Negative (FN) patient — enabling direct comparison of what the model attends to when it succeeds versus when it misses a diagnosis.
+
+The visual outputs per model type are:
+
+**Spatial GNN**
+- **Temporal Grad-CAM**: Heatmaps overlaying the raw ECG signal to pinpoint *when* the model detects pathological morphology (e.g., coved-type ST-segment elevation at the QRS-ST junction).
+- **Lead Importance Bar Chart**: Derived from the L2 norm of graph node embeddings, showing which leads (e.g., V1, V2) drove the classification.
+- **Lead Connectivity Graph**: Node-link diagram of the hybrid adjacency edge weights over the patient's specific cardiac electrical state.
+
+**1D ResNet**
+- **Temporal Grad-CAM**: Same heatmap overlay as above; activation patterns tend to be more diffuse compared to the GNN.
+
+**HGB**
+- **Permutation Feature Importance**: Global bar chart showing which handcrafted morphological features (ST elevation, J-point amplitude, T-wave polarity, etc.) most influenced the classifier. Features from Brugada-relevant leads V1–V3 are highlighted in red.
+
+---
+### HGB — Feature Importance (Patient 3072836, True Positive)
+![HGB XAI](https://raw.githubusercontent.com/kiuyha/idsc2026-brugada/main/experiments/xai_hgb_baseline_3072836.png)
+
+> **Reading this plot**: Each bar shows how much a feature's permutation (random shuffling) decreases model accuracy — higher means the feature is more critical. Bars in **red** belong to Brugada-relevant leads V1, V2, or V3. For this correctly classified patient, `j_point_V3`, `min_V2`, and `st_elevation_V3` dominate, which aligns with the clinical hallmark of right precordial ST-segment elevation in Brugada syndrome.
+
+### HGB — Feature Importance (Patient 581912, False Negative)
+![HGB FN XAI](https://raw.githubusercontent.com/kiuyha/idsc2026-brugada/main/experiments/xai_hgb_baseline_581912_fn.png)
+
+> **Reading this plot**: For this missed Brugada case, the most important features shift toward `st_elevation_V2` and `st_elevation_aVL`, but the overall importance magnitudes are lower and QRS duration features show near-zero importance. This suggests the patient's morphological features were atypical or subtle enough that the handcrafted feature set failed to capture sufficient discriminative signal — a key limitation of HGB compared to learned representations.
+
+### 1D ResNet — Grad-CAM (Patient 3072836, True Positive)
 ![ResNet XAI](https://raw.githubusercontent.com/kiuyha/idsc2026-brugada/main/experiments/xai_resnet_baseline_3072836.png)
+
+> **Reading this plot**: Red regions indicate high Grad-CAM intensity — the temporal windows the model weighted most heavily. For this correctly classified patient, activations are broadly distributed across the full 12-second window with no clear anatomical focus, reflecting the ResNet's purely temporal processing with no spatial lead-awareness.
+
+### 1D ResNet — Grad-CAM (Patient 3004284, False Negative)
+![ResNet FN XAI](https://raw.githubusercontent.com/kiuyha/idsc2026-brugada/main/experiments/xai_resnet_baseline_3004284_fn.png)
+
+> **Reading this plot**: For this missed Brugada case, activations remain diffuse and indistinguishable from the TP report above — the model attends to the same general regions regardless of outcome. This inability to localise discriminative morphology is consistent with the ResNet's black-box nature and explains why it fails silently on atypical presentations.
 
 ### Spatial GNN — Grad-CAM + Lead Importance (Patient 3072836)
 ![Spatial GNN XAI](https://raw.githubusercontent.com/kiuyha/idsc2026-brugada/main/experiments/xai_spatial_gnn_3072836.png)
 
-The `notebook.ipynb` workspace provides an interactive environment to load specific patient IDs, run inference, and generate these visualizations post-hoc.
+> **Reading this plot**: Top three panels show Grad-CAM overlays for the highest-importance leads — high-intensity regions are focused at the early portion of each cardiac cycle, consistent with the QRS-ST junction where coved-type ST elevation manifests. Bottom-left shows lead importance scores derived from L2 norms of graph embeddings (V1 highest at 0.142, followed by aVL and V2), directly corroborating clinical diagnostic criteria. Bottom-right shows the lead connectivity graph where node size encodes importance and edge weight encodes hybrid adjacency strength — precordial leads form a tightly interconnected subgraph, confirming the GNN has learned anatomical proximity implicitly.
 
+> **Note**: No FN report is generated for the Spatial GNN on this evaluation seed (seed=42), as the model achieved perfect recall (1.0) on the test split, all Brugada-positive patients were correctly identified.
+
+---
+
+The `notebook.ipynb` workspace provides an interactive environment to load specific patient IDs, run inference, and generate these visualizations post-hoc.
 ## Reproducibility
 - All randomness in the pipeline is controlled through a single seed value in the config, which is passed to Python's `random`, NumPy, and PyTorch (including CUDA) via `set_seed()` in `utils.py`. CUDA determinism is enforced via `torch.backends.cudnn.deterministic = True`.
 

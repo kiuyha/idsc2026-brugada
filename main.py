@@ -63,17 +63,12 @@ def main(args):
 
     pd.DataFrame([flat_results]).to_csv(f"experiments/{config['experiment_name']}.csv", index=False)
     
-    if model_type != 'hgb_baseline':  # Skip XAI for traditional ML if it's unsupported
-        try:
-            # We use the test_loader's dataset so it doesn't leak training data
-            generate_xai_from_dataset(
-                model=trainer.model, 
-                dataset=test_loader.dataset, 
-                config=config, 
-                args=args
-            )
-        except Exception as e:
-            print(f"Failed to generate XAI report: {e}")
+    generate_xai_from_dataset(
+        model=trainer.model, 
+        dataset=test_loader.dataset, 
+        config=config, 
+        args=args
+    )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

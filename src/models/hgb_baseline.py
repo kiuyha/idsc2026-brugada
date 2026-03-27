@@ -134,4 +134,3 @@ class HistBoostBaseline(BaseECGModel):
         ], dim=1)
 
         return features.numpy()
-    
