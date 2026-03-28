@@ -1,5 +1,7 @@
 # Brugada Syndrome Detection via Graph Neural Networks and Deep Learning
 
+> **IDSC 2026 Submission | Team Whatever | Dataset: Brugada-HUCA (PhysioNet)**
+
 This repository contains the full experimental pipeline for the [IDSC 2026](https://idsc2026.github.io) submission: a comparative study of Histogram Gradient Boosting, ResNet, and Spatial Graph Neural Network architectures for automated binary classification of Brugada syndrome from 12-lead ECG signals using the Brugada-HUCA dataset from [PhysioNet](https://physionet.org/content/brugada-huca/1.0.0).
 
 The codebase is structured to support reproducible hyperparameter search, model comparison across multiple random seeds, and interpretability analysis via lead importance scores and temporal Grad-CAM visualizations.
