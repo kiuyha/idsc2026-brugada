@@ -2,7 +2,7 @@
 
 > **IDSC 2026 Submission | Team Whatever | Dataset: Brugada-HUCA (PhysioNet)**
 
-This repository contains the full experimental pipeline for the [IDSC 2026](https://idsc2026.github.io) submission: a comparative study of Histogram Gradient Boosting, ResNet, and Spatial Graph Neural Network architectures for automated binary classification of Brugada syndrome from 12-lead ECG signals using the Brugada-HUCA dataset from [PhysioNet](https://physionet.org/content/brugada-huca/1.0.0).
+This repository contains the full experimental pipeline for the [IDSC 2026](https://idsc2026.github.io) submission: a comparative study of Histogram Gradient Boosting, ResNet, and Spatial Graph Neural Network architectures for automated binary classification of Brugada syndrome from 12-lead ECG signals using the Brugada-HUCA dataset from [PhysioNet](https://physionet.org/content/brugada-huca/1.0.0). Full report could be read in [here](https://raw.githubusercontent.com/kiuyha/idsc2026-brugada/refs/heads/main/Techinical_Report.pdf)
 
 The codebase is structured to support reproducible hyperparameter search, model comparison across multiple random seeds, and interpretability analysis via lead importance scores and temporal Grad-CAM visualizations.
 
